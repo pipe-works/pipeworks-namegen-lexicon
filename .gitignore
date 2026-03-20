@@ -205,3 +205,11 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+# Generated lexicon pipeline artifacts
+_working/
+data/raw/*.db
+data/normalized/
+data/annotated/*.tmp*
+
+# Local docs build output
+docs/build/
