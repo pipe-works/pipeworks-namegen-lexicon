@@ -1,0 +1,230 @@
+# Name Class Matrix - Selection policies for different name types
+#
+# This file defines the feature preferences for each name class.
+# It is the externalized policy configuration for the name_selector tool.
+#
+# Each name class defines:
+#   - description: Human-readable purpose and optimization goal
+#   - syllable_range: [min, max] syllables (inclusive)
+#   - features: Policy for each of the 12 phonetic features
+#
+# Feature policy values:
+#   - preferred:   +1 score, actively sought
+#   - tolerated:    0 score, neutral (neither helps nor hurts)
+#   - discouraged: Hard reject (hard mode) or -10 score (soft mode)
+#
+# The 12 features are grouped by position:
+#   Onset:    starts_with_vowel, starts_with_cluster, starts_with_heavy_cluster
+#   Internal: contains_plosive, contains_fricative, contains_liquid, contains_nasal
+#   Nucleus:  short_vowel, long_vowel
+#   Coda:     ends_with_vowel, ends_with_nasal, ends_with_stop
+#
+# See: build_tools/syllable_feature_annotator/feature_rules.py for detector implementations
+# See: _working/sfa_name_ontology_and_selection.md for design rationale
+
+version: '1.0'
+
+name_classes:
+  # ============================================================================
+  # First Name - Direct Social Address
+  # ============================================================================
+  # Primary function: Addressability
+  # Optimized for: Easy to call out, pleasant mouth-feel, approachable
+  #
+  # Phonetic strategy:
+  # - Prefer vowel starts (open, inviting onset)
+  # - Prefer vowel endings (open syllables, easy to extend/call)
+  # - Prefer liquids (flowing, pleasant texture)
+  # - Avoid heavy clusters (too harsh for casual address)
+  # - Avoid stop endings (too abrupt for social warmth)
+  first_name:
+    description: Direct social address. Optimized for addressability and mouth-feel.
+    syllable_range: [2, 3]
+    features:
+      starts_with_vowel: preferred
+      starts_with_cluster: tolerated
+      starts_with_heavy_cluster: discouraged
+      contains_plosive: tolerated
+      contains_fricative: tolerated
+      contains_liquid: preferred
+      contains_nasal: tolerated
+      short_vowel: preferred
+      long_vowel: tolerated
+      ends_with_vowel: preferred
+      ends_with_nasal: tolerated
+      ends_with_stop: discouraged
+
+  # ============================================================================
+  # Last Name - Lineage Marker
+  # ============================================================================
+  # Primary function: Durability
+  # Optimized for: Weight, gravitas, distinctiveness across generations
+  #
+  # Phonetic strategy:
+  # - Prefer clusters (more substantial, distinctive)
+  # - Prefer stop/nasal endings (closed, definitive)
+  # - Prefer plosives and fricatives (texture, memorability)
+  # - Avoid vowel endings (too open, less authoritative)
+  last_name:
+    description: Lineage marker. Optimized for durability and distinctiveness.
+    syllable_range: [2, 3]
+    features:
+      starts_with_vowel: tolerated
+      starts_with_cluster: preferred
+      starts_with_heavy_cluster: tolerated
+      contains_plosive: preferred
+      contains_fricative: preferred
+      contains_liquid: tolerated
+      contains_nasal: preferred
+      short_vowel: tolerated
+      long_vowel: preferred
+      ends_with_vowel: discouraged
+      ends_with_nasal: preferred
+      ends_with_stop: preferred
+
+  # ============================================================================
+  # Place Name - Geographic Reference
+  # ============================================================================
+  # Primary function: Stability
+  # Optimized for: Timelessness, groundedness, easy to remember
+  #
+  # Phonetic strategy:
+  # - Prefer clusters (distinctive, landmark-like)
+  # - Prefer vowel endings (can extend naturally: "...of Kalira")
+  # - Prefer liquids (flowing, natural-sounding)
+  # - Prefer long vowels (weight, importance)
+  # - Tolerate most features (places are diverse)
+  place_name:
+    description: Geographic reference. Optimized for stability and groundedness.
+    syllable_range: [2, 4]
+    features:
+      starts_with_vowel: tolerated
+      starts_with_cluster: preferred
+      starts_with_heavy_cluster: tolerated
+      contains_plosive: tolerated
+      contains_fricative: preferred
+      contains_liquid: preferred
+      contains_nasal: tolerated
+      short_vowel: tolerated
+      long_vowel: preferred
+      ends_with_vowel: preferred
+      ends_with_nasal: tolerated
+      ends_with_stop: tolerated
+
+  # ============================================================================
+  # Location Name - Socially Charged Sub-Place
+  # ============================================================================
+  # Primary function: Meaning Compression
+  # Optimized for: Distinctiveness, memorable handles for neighborhoods/districts
+  #
+  # Phonetic strategy:
+  # - Prefer clusters (including heavy - sharp, distinctive)
+  # - Prefer plosives and fricatives (texture, impact)
+  # - Prefer liquids and nasals (layered complexity)
+  # - Prefer long vowels (weight, significance)
+  # - Prefer nasal/stop endings (closed, definitive)
+  # - Tolerate vowel endings (flexibility)
+  location_name:
+    description: Socially charged sub-place. Optimized for meaning compression and distinctiveness.
+    syllable_range: [1, 3]
+    features:
+      starts_with_vowel: tolerated
+      starts_with_cluster: preferred
+      starts_with_heavy_cluster: preferred
+      contains_plosive: preferred
+      contains_fricative: preferred
+      contains_liquid: preferred
+      contains_nasal: preferred
+      short_vowel: tolerated
+      long_vowel: preferred
+      ends_with_vowel: tolerated
+      ends_with_nasal: preferred
+      ends_with_stop: preferred
+
+  # ============================================================================
+  # Object / Item - Identification + Affordance
+  # ============================================================================
+  # Primary function: Distinction
+  # Optimized for: Quick identification, clear differentiation, functional naming
+  #
+  # Phonetic strategy:
+  # - Prefer clusters (including heavy - sharp, distinct)
+  # - Prefer plosives and fricatives (crisp, technical feel)
+  # - Prefer short vowels (quick, efficient)
+  # - Prefer stop endings (definitive, closed)
+  # - Avoid vowel endings (too open, less distinct)
+  object_item:
+    description: Identification and affordance. Optimized for distinction and quick recognition.
+    syllable_range: [1, 2]
+    features:
+      starts_with_vowel: tolerated
+      starts_with_cluster: preferred
+      starts_with_heavy_cluster: preferred
+      contains_plosive: preferred
+      contains_fricative: preferred
+      contains_liquid: tolerated
+      contains_nasal: tolerated
+      short_vowel: preferred
+      long_vowel: tolerated
+      ends_with_vowel: discouraged
+      ends_with_nasal: tolerated
+      ends_with_stop: preferred
+
+  # ============================================================================
+  # Organisation - Collective Identity
+  # ============================================================================
+  # Primary function: Cadence
+  # Optimized for: Authority, memorability, collective gravitas
+  #
+  # Phonetic strategy:
+  # - Prefer clusters (including heavy - substantial, authoritative)
+  # - Prefer all texture features (plosive, fricative, liquid, nasal)
+  # - Prefer long vowels (weight, formality)
+  # - Prefer nasal/stop endings (closed, definitive)
+  # - Tolerate vowel endings (flexibility for compounds)
+  organisation:
+    description: Collective identity. Optimized for cadence and authority.
+    syllable_range: [2, 4]
+    features:
+      starts_with_vowel: tolerated
+      starts_with_cluster: preferred
+      starts_with_heavy_cluster: preferred
+      contains_plosive: preferred
+      contains_fricative: preferred
+      contains_liquid: preferred
+      contains_nasal: preferred
+      short_vowel: tolerated
+      long_vowel: preferred
+      ends_with_vowel: tolerated
+      ends_with_nasal: preferred
+      ends_with_stop: preferred
+
+  # ============================================================================
+  # Title / Epithet - Role Signalling
+  # ============================================================================
+  # Primary function: Authority
+  # Optimized for: Weight, gravitas, non-trivial presence
+  #
+  # Phonetic strategy:
+  # - Prefer clusters (including heavy - commanding)
+  # - Prefer plosives and fricatives (impact, presence)
+  # - Prefer long vowels (weight, importance)
+  # - Prefer stop endings (definitive closure)
+  # - Avoid short vowels (too casual/trivial)
+  # - Avoid vowel endings (too open, less authoritative)
+  title_epithet:
+    description: Role signalling. Optimized for authority and gravitas.
+    syllable_range: [1, 2]
+    features:
+      starts_with_vowel: tolerated
+      starts_with_cluster: preferred
+      starts_with_heavy_cluster: preferred
+      contains_plosive: preferred
+      contains_fricative: preferred
+      contains_liquid: tolerated
+      contains_nasal: tolerated
+      short_vowel: discouraged
+      long_vowel: preferred
+      ends_with_vowel: discouraged
+      ends_with_nasal: tolerated
+      ends_with_stop: preferred

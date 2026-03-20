@@ -1,0 +1,20 @@
+[
+  {
+    "syllable": "ka",
+    "frequency": 187,
+    "features": {
+      "starts_with_vowel": false,
+      "starts_with_cluster": false,
+      "starts_with_heavy_cluster": false,
+      "contains_plosive": true,
+      "contains_fricative": false,
+      "contains_liquid": false,
+      "contains_nasal": false,
+      "short_vowel": true,
+      "long_vowel": false,
+      "ends_with_vowel": true,
+      "ends_with_nasal": false,
+      "ends_with_stop": false
+    }
+  }
+]

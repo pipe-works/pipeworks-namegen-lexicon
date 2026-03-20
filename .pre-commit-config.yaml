@@ -1,4 +1,4 @@
-# Pre-commit hooks for pipeworks_name_generation
+# Pre-commit hooks for pipeworks-namegen-lexicon
 # Install: pip install pre-commit && pre-commit install
 # Run manually: pre-commit run --all-files
 # Update hooks: pre-commit autoupdate
@@ -75,10 +75,9 @@ repos:
     - pytest
     - types-setuptools
     - types-pyyaml
-    - textual>=0.50.0
+    - numpy>=1.24.0
     args: [--check-untyped-defs]
-        # Check main package, tests, and build_tools (expanded from just main package)
-    files: ^(pipeworks_name_generation|tests|build_tools)/.*\.py$
+    files: ^(src|tests)/.*\.py$
 
   # Security checks
 - repo: https://github.com/PyCQA/bandit
@@ -131,7 +130,7 @@ repos:
     name: CLI Docs Reminder
     entry: python -c "import sys; files = [f for f in sys.argv[1:] if 'cli.py' in f or '__main__.py' in f]; sys.exit(0) if not files else print('⚠️  CLI files changed:', ', '.join(files), '\n   → Remember to update docs/source/build_tools/*.rst if CLI options changed\n', file=sys.stderr) or sys.exit(0)"
     language: system
-    files: ^build_tools/.*/(cli|__main__)\.py$
+    files: ^src/build_tools/.*/(cli|__main__)\.py$
     pass_filenames: true
     verbose: true
 
@@ -139,7 +138,7 @@ repos:
     name: RST Docstring Formatting
     entry: python scripts/check_rst_docstrings.py
     language: system
-    files: ^build_tools/.*\.py$
+    files: ^src/build_tools/.*\.py$
     pass_filenames: true
     types: [python]
 
