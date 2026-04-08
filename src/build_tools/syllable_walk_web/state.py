@@ -1,8 +1,17 @@
-"""
-Server-side state for the Pipe-Works creator workbench web application.
+"""In-memory state models for the Pipe-Works creator workbench.
 
-Holds ephemeral state for pipeline jobs and walker patches.
-All state is in-memory only — not persisted across restarts.
+These dataclasses model the live, mutable state held by the browser-facing
+creator workbench process. They intentionally describe ephemeral runtime state,
+not durable package artifacts:
+
+- :class:`PatchState` tracks one loaded comparison patch and its derived data.
+- :class:`PipelineJobState` tracks the currently running pipeline job.
+- :class:`CreatorWorkbenchState` groups those pieces into the shared server state used by
+  the HTTP handler layer.
+
+All of this state is process-local and is rebuilt on restart. That distinction
+matters because the workbench is an authoring environment, while package ZIPs,
+metadata, manifests, and API-imported SQLite data are the durable outputs.
 """
 
 from __future__ import annotations
@@ -15,7 +24,21 @@ from typing import Any
 
 @dataclass
 class PatchState:
-    """State for one walker patch (A or B)."""
+    """Live state for one side of the dual-patch walker workspace.
+
+    A patch is the loaded corpus/run context plus the derived data created
+    while a creator explores it: annotated syllables, generated walks,
+    candidate pools, reach-cache metadata, and selected names.
+
+    The fields are intentionally verbose because the workbench can move a patch
+    through several stages over time:
+
+    1. discover a run
+    2. load the corpus and annotations
+    3. verify manifest and reach-cache provenance
+    4. generate walks and candidates
+    5. save selections or package the resulting material
+    """
 
     run_id: str | None = None
     corpus_type: str | None = None
@@ -63,7 +86,12 @@ class PatchState:
 
 @dataclass
 class PipelineJobState:
-    """State for the running pipeline job."""
+    """Live state for the currently active pipeline job.
+
+    The creator workbench only runs one pipeline job at a time in-process.
+    This structure is therefore a single mutable snapshot of the pipeline's
+    current status, progress, logs, and failure state.
+    """
 
     job_id: str | None = None
     status: str = "idle"
@@ -77,8 +105,18 @@ class PipelineJobState:
 
 
 @dataclass
-class ServerState:
-    """Global server state."""
+class CreatorWorkbenchState:
+    """Shared creator-workbench server state.
+
+    This state object is attached to the handler class because the stdlib HTTP
+    server constructs a new request handler instance for every request. It is
+    therefore the shared bridge between:
+
+    - Pipeline operations
+    - Walker patch state
+    - Session lock coordination
+    - Filesystem roots selected by the operator
+    """
 
     patch_a: PatchState = field(default_factory=PatchState)
     patch_b: PatchState = field(default_factory=PatchState)
@@ -98,3 +136,8 @@ class ServerState:
     active_session_id: str | None = None
     # Current holder id for the active session lock.
     active_session_lock_holder_id: str | None = None
+
+
+# ``ServerState`` remains available as a compatibility alias while the
+# workbench package adopts the more descriptive canonical name.
+ServerState = CreatorWorkbenchState

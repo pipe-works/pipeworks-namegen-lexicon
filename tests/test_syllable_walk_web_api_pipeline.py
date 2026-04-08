@@ -17,7 +17,7 @@ from build_tools.syllable_walk_web.api.pipeline import (
     handle_start,
     handle_status,
 )
-from build_tools.syllable_walk_web.state import ServerState
+from build_tools.syllable_walk_web.state import CreatorWorkbenchState, ServerState
 
 # ============================================================
 # Fixtures
@@ -26,17 +26,22 @@ from build_tools.syllable_walk_web.state import ServerState
 
 @pytest.fixture
 def state():
-    """Fresh ServerState with idle pipeline job."""
-    return ServerState()
+    """Fresh creator-workbench state with idle pipeline job."""
+    return CreatorWorkbenchState()
 
 
 @pytest.fixture
 def running_state():
-    """ServerState with pipeline job already running."""
-    s = ServerState()
+    """Creator-workbench state with pipeline job already running."""
+    s = CreatorWorkbenchState()
     s.pipeline_job.status = "running"
     s.pipeline_job.job_id = "20260220_120000"
     return s
+
+
+def test_server_state_alias_matches_canonical_type():
+    """Legacy ServerState alias should point at the canonical workbench state."""
+    assert ServerState is CreatorWorkbenchState
 
 
 # ============================================================

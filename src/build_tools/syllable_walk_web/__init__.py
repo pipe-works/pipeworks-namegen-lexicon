@@ -1,10 +1,10 @@
-"""
-Pipe-Works Lexicon Pipeline Web Application.
+"""Pipe-Works creator workbench package.
 
-Combined web interface for lexicon pipeline and walker workflows.
-
-This is a **build-time tool only** and is not used during runtime generation.
-TUI surfaces are retired in this repository.
+This package contains the maintained interactive surface for lexicon creation:
+pipeline orchestration, dual-patch walking, analysis, selection, and package
+authoring. It is a creator-facing application, not a runtime-generation
+service, and it deliberately consolidates the old TUI-heavy workflow into a
+single browser-first surface.
 
 Features:
     - Pipeline tool: extraction, normalization, annotation with live monitoring
@@ -20,7 +20,7 @@ Architecture:
       ``selector_runner``, ``walk_generator``, ``metrics``, ``packager``,
       ``pipeline_runner``)
     - ``state.py``: Dataclasses (``PatchState``, ``PipelineJobState``,
-      ``ServerState``)
+      ``CreatorWorkbenchState``)
     - ``server.py``: stdlib ``http.server`` with routing and static file serving
 
 Usage:
@@ -37,13 +37,13 @@ Usage:
 """
 
 from build_tools.syllable_walk_web.server import (
-    CorpusBuilderHandler,
+    CreatorWorkbenchHandler,
     find_available_port,
     run_server,
 )
 
 __all__ = [
-    "CorpusBuilderHandler",
+    "CreatorWorkbenchHandler",
     "find_available_port",
     "run_server",
 ]

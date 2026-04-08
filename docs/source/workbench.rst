@@ -1,8 +1,8 @@
 Creator Workbench
 =================
 
-The main interactive surface in this repository is
-``build_tools.syllable_walk_web``.
+The main interactive surface in this repository is the creator workbench
+implementation at ``build_tools.syllable_walk_web``.
 
 It is a browser-based creator workbench that combines pipeline execution and
 exploratory syllable walking in one maintained UI.
@@ -62,3 +62,15 @@ The current implementation is organized around a few main areas:
 
 The web surface is the maintained interactive interface in this repository.
 Historical TUI surfaces are not part of the supported product shape here.
+
+Configuration
+-------------
+
+The workbench now prefers a ``[creator_workbench]`` section in ``server.ini``.
+It still understands the older ``[build_tools]`` section so existing local
+configs do not break immediately, but new configuration should use the
+creator-workbench name directly.
+
+For the current live Luminal host model, the workbench is configured to bind on
+``127.0.0.1`` behind nginx rather than listening broadly on the LAN. The
+details of that deployment shape are documented in :doc:`luminal`.

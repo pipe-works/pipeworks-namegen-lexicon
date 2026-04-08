@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from build_tools.syllable_walk_web.state import ServerState
+from build_tools.syllable_walk_web.state import CreatorWorkbenchState
 
 LOCK_TTL_SECONDS = 45
 
@@ -40,7 +40,7 @@ def _normalize_nonempty_str(value: Any) -> str | None:
     return cleaned if cleaned else None
 
 
-def _prune_expired_locks(*, state: ServerState, now_epoch: float) -> None:
+def _prune_expired_locks(*, state: CreatorWorkbenchState, now_epoch: float) -> None:
     """Remove expired session lock records from in-memory lock map."""
 
     expired: list[str] = []
@@ -69,7 +69,7 @@ def _lock_info(lock: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def get_session_lock_info(*, state: ServerState, session_id: str) -> dict[str, Any]:
+def get_session_lock_info(*, state: CreatorWorkbenchState, session_id: str) -> dict[str, Any]:
     """Return current lock info for one session after pruning expired leases."""
 
     import time
@@ -100,7 +100,7 @@ def get_session_lock_info(*, state: ServerState, session_id: str) -> dict[str, A
 
 def acquire_session_lock(
     *,
-    state: ServerState,
+    state: CreatorWorkbenchState,
     session_id: str,
     holder_id: str,
     force: bool = False,
@@ -189,7 +189,7 @@ def acquire_session_lock(
 
 def heartbeat_session_lock(
     *,
-    state: ServerState,
+    state: CreatorWorkbenchState,
     session_id: str,
     holder_id: str,
 ) -> dict[str, Any]:
@@ -205,7 +205,7 @@ def heartbeat_session_lock(
 
 def release_session_lock(
     *,
-    state: ServerState,
+    state: CreatorWorkbenchState,
     session_id: str,
     holder_id: str,
 ) -> dict[str, Any]:

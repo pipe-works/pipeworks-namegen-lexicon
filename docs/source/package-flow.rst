@@ -37,6 +37,14 @@ The package builder currently emits:
 The package build step is best understood as the handoff point between creator
 workflow and runtime serving.
 
+On the current Luminal deployment, those package artifacts are generated into
+the host-managed runtime area configured by the creator workbench:
+
+- ``/srv/work/pipeworks/runtime/namegen-lexicon/output``
+
+That keeps generated artifacts out of the repo checkout while still leaving
+them close to the hosted workbench surface.
+
 What does not happen here
 -------------------------
 

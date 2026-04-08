@@ -20,10 +20,12 @@ from build_tools.syllable_walk_web.api.walker_types import (
     SelectResponse,
     WalkResponse,
 )
-from build_tools.syllable_walk_web.state import PatchState, ServerState
+from build_tools.syllable_walk_web.state import CreatorWorkbenchState, PatchState
 
-EnforceActiveLockFn = Callable[[dict[str, Any], ServerState], dict[str, Any] | None]
-ResolvePatchStateFn = Callable[[dict[str, Any], ServerState], tuple[str, PatchState] | None]
+EnforceActiveLockFn = Callable[[dict[str, Any], CreatorWorkbenchState], dict[str, Any] | None]
+ResolvePatchStateFn = Callable[
+    [dict[str, Any], CreatorWorkbenchState], tuple[str, PatchState] | None
+]
 CoerceOptionalConstraintIntFn = Callable[..., tuple[int | None, str | None]]
 PersistPatchArtifactSidecarFn = Callable[..., None]
 CombineViaWalksFn = Callable[..., list[dict[str, Any]]]
@@ -32,7 +34,7 @@ CombineViaWalksFn = Callable[..., list[dict[str, Any]]]
 def _resolve_locked_patch_state(
     *,
     body: dict[str, Any],
-    state: ServerState,
+    state: CreatorWorkbenchState,
     enforce_active_session_lock_fn: EnforceActiveLockFn,
     resolve_patch_state_fn: ResolvePatchStateFn,
 ) -> tuple[str, PatchState] | ErrorResponse | ErrorWithLockResponse:
@@ -109,7 +111,7 @@ def combine_via_walks(
 
 def handle_walk(
     body: dict[str, Any],
-    state: ServerState,
+    state: CreatorWorkbenchState,
     *,
     enforce_active_session_lock_fn: EnforceActiveLockFn,
     resolve_patch_state_fn: ResolvePatchStateFn,
@@ -226,7 +228,7 @@ def handle_walk(
 
 def handle_reach_syllables(
     body: dict[str, Any],
-    state: ServerState,
+    state: CreatorWorkbenchState,
     *,
     resolve_patch_state_fn: ResolvePatchStateFn,
 ) -> ReachSyllablesResponse | ErrorResponse:
@@ -273,7 +275,7 @@ def handle_reach_syllables(
 
 def handle_combine(
     body: dict[str, Any],
-    state: ServerState,
+    state: CreatorWorkbenchState,
     *,
     enforce_active_session_lock_fn: EnforceActiveLockFn,
     resolve_patch_state_fn: ResolvePatchStateFn,
@@ -380,7 +382,7 @@ def handle_combine(
 
 def handle_select(
     body: dict[str, Any],
-    state: ServerState,
+    state: CreatorWorkbenchState,
     *,
     enforce_active_session_lock_fn: EnforceActiveLockFn,
     resolve_patch_state_fn: ResolvePatchStateFn,
@@ -447,7 +449,7 @@ def handle_select(
 
 def handle_export(
     body: dict[str, Any],
-    state: ServerState,
+    state: CreatorWorkbenchState,
     *,
     resolve_patch_state_fn: ResolvePatchStateFn,
 ) -> ExportResponse | ErrorResponse:
@@ -472,7 +474,7 @@ def handle_export(
 
 def handle_package(
     body: dict[str, Any],
-    state: ServerState,
+    state: CreatorWorkbenchState,
     *,
     enforce_active_session_lock_fn: EnforceActiveLockFn,
     persist_patch_artifact_sidecar_fn: PersistPatchArtifactSidecarFn,
@@ -542,7 +544,9 @@ def handle_package(
     return zip_bytes, filename, error
 
 
-def handle_analysis(patch_key: str, state: ServerState) -> AnalysisResponse | ErrorResponse:
+def handle_analysis(
+    patch_key: str, state: CreatorWorkbenchState
+) -> AnalysisResponse | ErrorResponse:
     """Handle ``GET /api/walker/analysis/<patch>``."""
 
     if patch_key not in ("a", "b"):

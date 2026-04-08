@@ -22,12 +22,12 @@ from build_tools.syllable_walk_web.api.walker_types import (
     SessionSaveResponse,
     SessionsResponse,
 )
-from build_tools.syllable_walk_web.state import PatchState, ServerState
+from build_tools.syllable_walk_web.state import CreatorWorkbenchState, PatchState
 
-EnforceActiveLockFn = Callable[[dict[str, Any], ServerState], dict[str, Any] | None]
+EnforceActiveLockFn = Callable[[dict[str, Any], CreatorWorkbenchState], dict[str, Any] | None]
 CoerceLockHolderFn = Callable[[dict[str, Any]], tuple[str | None, str | None]]
 LockConflictErrorFn = Callable[..., dict[str, Any]]
-LoadCorpusFn = Callable[[dict[str, Any], ServerState], dict[str, Any]]
+LoadCorpusFn = Callable[[dict[str, Any], CreatorWorkbenchState], dict[str, Any]]
 RestorePatchArtifactsFn = Callable[..., RestorePatchArtifactsResult]
 ReadJsonObjectFn = Callable[[Path], dict[str, Any] | None]
 
@@ -72,7 +72,7 @@ def _patch_load_failure_result(
 
 def handle_save_session(
     body: dict[str, Any],
-    state: ServerState,
+    state: CreatorWorkbenchState,
     *,
     enforce_active_session_lock_fn: EnforceActiveLockFn,
 ) -> SessionSaveResponse | ErrorResponse:
@@ -133,7 +133,7 @@ def handle_save_session(
     }
 
 
-def handle_sessions(state: ServerState) -> SessionsResponse | ErrorResponse:
+def handle_sessions(state: CreatorWorkbenchState) -> SessionsResponse | ErrorResponse:
     """Handle GET ``/api/walker/sessions``."""
 
     from build_tools.syllable_walk_web.services.walker_session_lock import get_session_lock_info
@@ -390,7 +390,7 @@ def is_stale_session_recoverable(*, status: str, reason: str | None) -> bool:
 
 def handle_load_session(
     body: dict[str, Any],
-    state: ServerState,
+    state: CreatorWorkbenchState,
     *,
     coerce_lock_holder_id_fn: CoerceLockHolderFn,
     lock_conflict_error_fn: LockConflictErrorFn,

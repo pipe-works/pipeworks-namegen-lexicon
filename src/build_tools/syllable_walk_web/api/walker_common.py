@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from build_tools.syllable_walk_web.state import PatchState, ServerState
+from build_tools.syllable_walk_web.state import CreatorWorkbenchState, PatchState
 
 _MISSING = object()
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -57,7 +57,7 @@ def reach_cache_verification_from_read(
 
 def resolve_patch_state(
     body: dict[str, Any],
-    state: ServerState,
+    state: CreatorWorkbenchState,
 ) -> tuple[str, PatchState] | None:
     """Resolve request ``patch`` to ``("a"|"b", PatchState)``.
 

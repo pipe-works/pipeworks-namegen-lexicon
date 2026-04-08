@@ -30,7 +30,7 @@ from build_tools.syllable_walk_web.services.session_paths import (
     patch_output_sidecar_path,
     run_ipc_dir,
 )
-from build_tools.syllable_walk_web.state import ServerState
+from build_tools.syllable_walk_web.state import CreatorWorkbenchState
 
 RUN_STATE_FILENAME = "walker_run_state.v1.json"
 SCHEMA_VERSION = 1
@@ -339,7 +339,7 @@ def _verify_sidecar_payload(
 
 def save_run_state(
     *,
-    state: ServerState,
+    state: CreatorWorkbenchState,
     patch: str,
     artifact_kind: str,
     artifact_payload: dict[str, Any],

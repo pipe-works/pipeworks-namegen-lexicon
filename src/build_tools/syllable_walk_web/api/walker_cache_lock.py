@@ -19,10 +19,12 @@ from build_tools.syllable_walk_web.api.walker_types import (
     RebuildReachCacheResponse,
     SessionLockStatusResponse,
 )
-from build_tools.syllable_walk_web.state import PatchState, ServerState
+from build_tools.syllable_walk_web.state import CreatorWorkbenchState, PatchState
 
-EnforceActiveLockFn = Callable[[dict[str, Any], ServerState], dict[str, Any] | None]
-ResolvePatchStateFn = Callable[[dict[str, Any], ServerState], tuple[str, PatchState] | None]
+EnforceActiveLockFn = Callable[[dict[str, Any], CreatorWorkbenchState], dict[str, Any] | None]
+ResolvePatchStateFn = Callable[
+    [dict[str, Any], CreatorWorkbenchState], tuple[str, PatchState] | None
+]
 CoerceLockHolderFn = Callable[[dict[str, Any]], tuple[str | None, str | None]]
 IsSha256HexFn = Callable[[Any], bool]
 
@@ -66,7 +68,7 @@ def _lock_error_response(
 
 def handle_rebuild_reach_cache(
     body: dict[str, Any],
-    state: ServerState,
+    state: CreatorWorkbenchState,
     *,
     enforce_active_session_lock_fn: EnforceActiveLockFn,
     resolve_patch_state_fn: ResolvePatchStateFn,
@@ -147,7 +149,7 @@ def handle_rebuild_reach_cache(
 
 def handle_session_lock_heartbeat(
     body: dict[str, Any],
-    state: ServerState,
+    state: CreatorWorkbenchState,
     *,
     coerce_lock_holder_id_fn: CoerceLockHolderFn,
 ) -> SessionLockStatusResponse | ErrorResponse | ErrorWithLockResponse:
@@ -190,7 +192,7 @@ def handle_session_lock_heartbeat(
 
 def handle_session_lock_release(
     body: dict[str, Any],
-    state: ServerState,
+    state: CreatorWorkbenchState,
     *,
     coerce_lock_holder_id_fn: CoerceLockHolderFn,
 ) -> SessionLockStatusResponse | ErrorResponse | ErrorWithLockResponse:

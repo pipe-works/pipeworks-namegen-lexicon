@@ -90,7 +90,7 @@ from build_tools.syllable_walk_web.api.walker_session import (
     restore_patch_artifacts_from_run_state as _restore_patch_artifacts_from_run_state_impl,
 )
 from build_tools.syllable_walk_web.api.walker_types import RestorePatchArtifactsResult
-from build_tools.syllable_walk_web.state import PatchState, ServerState
+from build_tools.syllable_walk_web.state import CreatorWorkbenchState, PatchState
 
 
 def _is_sha256_hex(value: Any) -> bool:
@@ -118,7 +118,7 @@ def _reach_cache_verification_from_read(
 
 def _resolve_patch_state(
     body: dict[str, Any],
-    state: ServerState,
+    state: CreatorWorkbenchState,
 ) -> tuple[str, PatchState] | None:
     """Backward-compatible wrapper for patch-state resolver."""
 
@@ -142,7 +142,7 @@ def _coerce_optional_constraint_int(
 
 def _persist_patch_artifact_sidecar(
     *,
-    state: ServerState,
+    state: CreatorWorkbenchState,
     patch_key: str,
     artifact_kind: str,
     artifact_payload: dict[str, Any],
@@ -199,19 +199,21 @@ def _lock_conflict_error(
     )
 
 
-def _enforce_active_session_lock(body: dict[str, Any], state: ServerState) -> dict[str, Any] | None:
+def _enforce_active_session_lock(
+    body: dict[str, Any], state: CreatorWorkbenchState
+) -> dict[str, Any] | None:
     """Backward-compatible wrapper for active-session lock enforcement."""
 
     return _enforce_active_session_lock_impl(body, state)
 
 
-def _clear_active_session_context(state: ServerState) -> None:
+def _clear_active_session_context(state: CreatorWorkbenchState) -> None:
     """Backward-compatible wrapper for active-session context clear helper."""
 
     _clear_active_session_context_impl(state)
 
 
-def handle_load_corpus(body: dict[str, Any], state: ServerState) -> dict[str, Any]:
+def handle_load_corpus(body: dict[str, Any], state: CreatorWorkbenchState) -> dict[str, Any]:
     """Handle POST /api/walker/load-corpus.
 
     Loads syllables from a discovered pipeline run and initialises the
@@ -487,7 +489,7 @@ def handle_load_corpus(body: dict[str, Any], state: ServerState) -> dict[str, An
     }
 
 
-def handle_walk(body: dict[str, Any], state: ServerState) -> dict[str, Any]:
+def handle_walk(body: dict[str, Any], state: CreatorWorkbenchState) -> dict[str, Any]:
     """Handle POST /api/walker/walk.
 
     Generates walks for a specified patch.
@@ -512,7 +514,7 @@ def handle_walk(body: dict[str, Any], state: ServerState) -> dict[str, Any]:
     )
 
 
-def handle_stats(state: ServerState) -> dict[str, Any]:
+def handle_stats(state: CreatorWorkbenchState) -> dict[str, Any]:
     """Handle GET /api/walker/stats.
 
     Returns current walker state for both patches.
@@ -583,7 +585,7 @@ def handle_stats(state: ServerState) -> dict[str, Any]:
     }
 
 
-def handle_save_session(body: dict[str, Any], state: ServerState) -> dict[str, Any]:
+def handle_save_session(body: dict[str, Any], state: CreatorWorkbenchState) -> dict[str, Any]:
     """Handle POST /api/walker/save-session.
 
     Persists one dual-patch session artifact under the runtime-resolved
@@ -600,7 +602,7 @@ def handle_save_session(body: dict[str, Any], state: ServerState) -> dict[str, A
     )
 
 
-def handle_sessions(state: ServerState) -> dict[str, Any]:
+def handle_sessions(state: CreatorWorkbenchState) -> dict[str, Any]:
     """Handle GET /api/walker/sessions.
 
     Returns saved session artifacts ordered newest-first with verification
@@ -651,7 +653,7 @@ def _is_stale_session_recoverable(*, status: str, reason: str | None) -> bool:
     return _is_stale_session_recoverable_impl(status=status, reason=reason)
 
 
-def handle_load_session(body: dict[str, Any], state: ServerState) -> dict[str, Any]:
+def handle_load_session(body: dict[str, Any], state: CreatorWorkbenchState) -> dict[str, Any]:
     """Handle POST /api/walker/load-session.
 
     Verifies one persisted session payload and triggers corpus loading for each
@@ -673,7 +675,9 @@ def handle_load_session(body: dict[str, Any], state: ServerState) -> dict[str, A
     )
 
 
-def handle_rebuild_reach_cache(body: dict[str, Any], state: ServerState) -> dict[str, Any]:
+def handle_rebuild_reach_cache(
+    body: dict[str, Any], state: CreatorWorkbenchState
+) -> dict[str, Any]:
     """Handle POST /api/walker/rebuild-reach-cache.
 
     Recomputes profile reach tables for one loaded patch and rewrites the
@@ -692,7 +696,9 @@ def handle_rebuild_reach_cache(body: dict[str, Any], state: ServerState) -> dict
     )
 
 
-def handle_session_lock_heartbeat(body: dict[str, Any], state: ServerState) -> dict[str, Any]:
+def handle_session_lock_heartbeat(
+    body: dict[str, Any], state: CreatorWorkbenchState
+) -> dict[str, Any]:
     """Handle POST /api/walker/session-lock/heartbeat.
 
     Refreshes a session lock lease for the caller's holder id.
@@ -709,7 +715,9 @@ def handle_session_lock_heartbeat(body: dict[str, Any], state: ServerState) -> d
     )
 
 
-def handle_session_lock_release(body: dict[str, Any], state: ServerState) -> dict[str, Any]:
+def handle_session_lock_release(
+    body: dict[str, Any], state: CreatorWorkbenchState
+) -> dict[str, Any]:
     """Handle POST /api/walker/session-lock/release.
 
     Releases the current lease when called by lock owner.
@@ -725,7 +733,7 @@ def handle_session_lock_release(body: dict[str, Any], state: ServerState) -> dic
     )
 
 
-def handle_reach_syllables(body: dict[str, Any], state: ServerState) -> dict[str, Any]:
+def handle_reach_syllables(body: dict[str, Any], state: CreatorWorkbenchState) -> dict[str, Any]:
     """Handle POST /api/walker/reach-syllables.
 
     Returns the list of reachable syllables for a given profile and patch,
@@ -773,7 +781,7 @@ def _combine_via_walks(
     )
 
 
-def handle_combine(body: dict[str, Any], state: ServerState) -> dict[str, Any]:
+def handle_combine(body: dict[str, Any], state: CreatorWorkbenchState) -> dict[str, Any]:
     """Handle POST /api/walker/combine.
 
     Generates name candidates from the loaded corpus syllables.
@@ -808,7 +816,7 @@ def handle_combine(body: dict[str, Any], state: ServerState) -> dict[str, Any]:
     )
 
 
-def handle_select(body: dict[str, Any], state: ServerState) -> dict[str, Any]:
+def handle_select(body: dict[str, Any], state: CreatorWorkbenchState) -> dict[str, Any]:
     """Handle POST /api/walker/select.
 
     Selects names from candidates using a name class policy.
@@ -833,7 +841,7 @@ def handle_select(body: dict[str, Any], state: ServerState) -> dict[str, Any]:
     )
 
 
-def handle_export(body: dict[str, Any], state: ServerState) -> dict[str, Any]:
+def handle_export(body: dict[str, Any], state: CreatorWorkbenchState) -> dict[str, Any]:
     """Handle POST /api/walker/export.
 
     Returns selected names as a downloadable list.
@@ -855,7 +863,9 @@ def handle_export(body: dict[str, Any], state: ServerState) -> dict[str, Any]:
     )
 
 
-def handle_package(body: dict[str, Any], state: ServerState) -> tuple[bytes, str, str | None]:
+def handle_package(
+    body: dict[str, Any], state: CreatorWorkbenchState
+) -> tuple[bytes, str, str | None]:
     """Handle POST /api/walker/package.
 
     Builds a ZIP archive from in-memory walker state.
@@ -875,7 +885,7 @@ def handle_package(body: dict[str, Any], state: ServerState) -> tuple[bytes, str
     )
 
 
-def handle_analysis(patch_key: str, state: ServerState) -> dict[str, Any]:
+def handle_analysis(patch_key: str, state: CreatorWorkbenchState) -> dict[str, Any]:
     """Handle GET /api/walker/analysis/<patch>.
 
     Computes corpus shape metrics for a patch.

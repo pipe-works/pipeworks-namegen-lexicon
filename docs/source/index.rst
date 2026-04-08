@@ -20,5 +20,6 @@ sprawl.
    tools-overview
    workbench
    package-flow
+   luminal
    development
    testing
