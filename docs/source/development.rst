@@ -20,12 +20,13 @@ Common Commands
    /srv/work/pipeworks/venvs/pw-namegen-lexicon/bin/python -m pytest -q
    RUFF_CACHE_DIR=/tmp/pw-namegen-lexicon-ruff-cache /srv/work/pipeworks/venvs/pw-namegen-lexicon/bin/python -m ruff check src tests
    /srv/work/pipeworks/venvs/pw-namegen-lexicon/bin/python -m build_tools.syllable_walk_web --help
+   /srv/work/pipeworks/venvs/pw-namegen-lexicon/bin/python -m build_tools.names_web --help
    cd docs && make clean html
 
 CLI Entry Point
 ---------------
 
-The maintained web surface is exposed through the project script:
+The maintained creator app is exposed through the project script:
 
 .. code-block:: bash
 
@@ -57,6 +58,31 @@ and uses a localhost bind:
 
 This keeps nginx as the canonical entrypoint and keeps mutable state outside
 the repo checkout.
+
+The names app has its own entrypoint:
+
+.. code-block:: bash
+
+   pipeworks-namegen-names-web --help
+   /srv/work/pipeworks/venvs/pw-namegen-lexicon/bin/python -m build_tools.names_web --help
+
+The names app is now also host-promoted on Luminal. Its live hostname is
+``names.pipeworks.luminal.local`` and its live config currently lives at:
+
+- ``/etc/pipeworks/namegen-lexicon/names.ini``
+
+Current live config shape:
+
+.. code-block:: ini
+
+   [names_app]
+   bind_host = 127.0.0.1
+   port = 8380
+   verbose = false
+   api_base_url = http://127.0.0.1:8360
+
+Like the creator workbench, the names app binds only to localhost and relies
+on nginx plus mkcert-backed TLS for LAN/browser access.
 
 Documentation Scope
 -------------------
