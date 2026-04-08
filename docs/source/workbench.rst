@@ -63,6 +63,11 @@ The current implementation is organized around a few main areas:
 The web surface is the maintained interactive interface in this repository.
 Historical TUI surfaces are not part of the supported product shape here.
 
+This repository also now contains a second human-facing app,
+``build_tools.names_web``, but that consumer-facing surface is intentionally
+kept separate from the creator workbench rather than merged into this screen
+tree.
+
 Configuration
 -------------
 

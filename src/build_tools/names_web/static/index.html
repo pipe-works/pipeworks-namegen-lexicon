@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pipe-Works Names</title>
+  <link rel="stylesheet" href="/static/pipe-works-fonts.css" />
+  <link rel="stylesheet" href="/static/pipe-works-base.css" />
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <header class="app-header">
+    <span class="app-header__title"><span class="app-header__icon">&#x2726;</span> Pipe-Works</span>
+    <span class="app-header__subtitle" id="app-version">names</span>
+    <nav class="tabs">
+      <button type="button" class="tab active" data-tab="generate">Generate</button>
+      <button type="button" class="tab" data-tab="favorites">Favorites</button>
+      <button type="button" class="tab" data-tab="help">Help</button>
+    </nav>
+    <button type="button" id="theme-toggle" class="btn btn--secondary btn--sm theme-toggle">Light Theme</button>
+  </header>
+
+  <main class="app-main">
+    <section class="panel active" id="panel-generate">
+      <section class="hero-card">
+        <div>
+          <h1>Generate from prepared packages</h1>
+          <p class="muted">
+            This is the consumer-facing Pipe-Works surface. It works with packages already
+            prepared elsewhere and talks to the runtime API through the local names app.
+          </p>
+        </div>
+        <div class="hero-meta">
+          <span id="upstream-status" class="status-pill status-pill--muted">Connecting...</span>
+        </div>
+      </section>
+
+      <section class="controls-card">
+        <div class="controls-grid">
+          <label class="field">
+            <span>Count</span>
+            <input id="generation-count" class="input" type="number" min="1" max="50" value="10" />
+          </label>
+          <label class="field">
+            <span>Seed</span>
+            <input id="generation-seed" class="input" type="number" placeholder="optional" />
+          </label>
+          <label class="field">
+            <span>Render</span>
+            <select id="generation-render-style" class="select">
+              <option value="raw" selected>Raw</option>
+              <option value="lower">lower</option>
+              <option value="upper">UPPER</option>
+              <option value="title">Title</option>
+              <option value="sentence">Sentence</option>
+            </select>
+          </label>
+          <label class="field checkbox-field">
+            <input id="generation-unique-only" type="checkbox" />
+            <span>Unique only</span>
+          </label>
+        </div>
+        <div class="favorite-fields">
+          <label class="field">
+            <span>Favorite tags</span>
+            <input id="favorite-tags" class="input" type="text" placeholder="comma,separated,tags" />
+          </label>
+          <label class="field field--wide">
+            <span>Favorite note</span>
+            <input id="favorite-note" class="input" type="text" placeholder="optional note for saved names" />
+          </label>
+        </div>
+      </section>
+
+      <section class="class-grid" id="generation-card-grid"></section>
+
+      <section class="selection-card">
+        <div class="selection-card__header">
+          <div>
+            <h2>Queued selections</h2>
+            <p class="muted">Build a small set of prepared name sources, then generate a preview.</p>
+          </div>
+          <div class="selection-actions">
+            <button type="button" id="clear-selections-btn" class="btn btn--secondary">Clear</button>
+            <button type="button" id="generate-preview-btn" class="btn btn--primary">Generate Preview</button>
+          </div>
+        </div>
+        <div id="selection-summary" class="selection-summary muted">No selections queued yet.</div>
+      </section>
+
+      <section class="preview-layout">
+        <section class="preview-card">
+          <div class="preview-card__header">
+            <div>
+              <h2>Preview</h2>
+              <p class="muted">Generated names grouped by the queued selections.</p>
+            </div>
+            <button type="button" id="favorite-preview-btn" class="btn btn--primary btn--sm">Favorite Preview</button>
+          </div>
+          <div id="preview-status" class="muted">Queue one or more selections to begin.</div>
+          <div id="preview-results" class="preview-results"></div>
+        </section>
+
+        <section class="preview-card">
+          <div class="preview-card__header">
+            <div>
+              <h2>First + Last combinations</h2>
+              <p class="muted">Built from current First Name and Last Name preview results.</p>
+            </div>
+            <button type="button" id="favorite-combos-btn" class="btn btn--primary btn--sm">Favorite Combos</button>
+          </div>
+          <div id="combo-status" class="muted">Generate at least one First Name and one Last Name preview.</div>
+          <div id="combo-results" class="preview-results"></div>
+        </section>
+      </section>
+    </section>
+
+    <section class="panel" id="panel-favorites">
+      <section class="favorites-card">
+        <div class="favorites-card__header">
+          <div>
+            <h1>Favorites</h1>
+            <p class="muted">Saved names come from the runtime API and remain available across consumer sessions.</p>
+          </div>
+          <button type="button" id="favorites-refresh-btn" class="btn btn--secondary">Refresh</button>
+        </div>
+        <div id="favorites-status" class="muted">Loading favorites...</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Class</th>
+                <th>Package</th>
+                <th>Tags</th>
+                <th>Source</th>
+                <th>Saved</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="favorites-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <section class="panel" id="panel-help">
+      <section class="help-card">
+        <h1>How this app fits</h1>
+        <p>
+          <strong>Names</strong> is the simple consumer-facing Pipe-Works app. It does not create
+          corpora, annotate syllables, or manage package imports. Those remain part of the creator
+          workbench and operator workflows.
+        </p>
+        <p>
+          This app assumes prepared package data already exists in the runtime API. You pick the
+          class, package, and syllable mode you want, preview results, and keep the names you like.
+        </p>
+        <ul class="help-list">
+          <li>Use the Generate tab to queue one or more selections and preview names.</li>
+          <li>Queue both First Name and Last Name to unlock combination previews.</li>
+          <li>Use Favorites to keep names across sessions without opening the creator workbench.</li>
+        </ul>
+      </section>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
