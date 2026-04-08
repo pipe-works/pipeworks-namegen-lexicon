@@ -1,6 +1,6 @@
 /*
    core/status.js
-   Shared status-bar helpers for the Build Tools frontend.
+   Shared status-bar helpers for the creator workbench frontend.
 */
 
 'use strict';

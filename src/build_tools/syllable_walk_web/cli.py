@@ -1,5 +1,5 @@
 """
-Command-line interface for the Pipe-Works Build Tools web application.
+Command-line interface for the Pipe-Works creator workbench web application.
 
 Provides ``python -m build_tools.syllable_walk_web`` entry point.
 """
@@ -109,7 +109,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
     """
     parser = argparse.ArgumentParser(
         description=(
-            "Launch the Pipe-Works Build Tools web application. "
+            "Launch the Pipe-Works creator workbench web application. "
             "Combines Pipeline (extraction/normalization/annotation) and "
             "Walker (dual-patch syllable walking, name generation) tools "
             "in a browser-based interface."

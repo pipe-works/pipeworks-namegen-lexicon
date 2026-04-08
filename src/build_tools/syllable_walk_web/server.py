@@ -1,5 +1,5 @@
 """
-HTTP server for the Pipe-Works Build Tools web application.
+HTTP server for the Pipe-Works creator workbench web application.
 
 Serves static frontend assets and provides a JSON API for pipeline
 and walker operations. Uses Python stdlib only (no frameworks).
@@ -570,7 +570,9 @@ def run_server(
     server = ThreadingHTTPServer(("", port), CorpusBuilderHandler)
 
     if verbose:
-        print(f"syllable-walk-web INFO: Pipe-Works Build Tools serving on http://localhost:{port}")
+        print(
+            f"syllable-walk-web INFO: Pipe-Works creator workbench serving on http://localhost:{port}"
+        )
         print("syllable-walk-web INFO: Press Ctrl+C to stop.")
 
     try:

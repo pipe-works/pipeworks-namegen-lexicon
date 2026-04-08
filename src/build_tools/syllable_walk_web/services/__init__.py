@@ -1,1 +1,1 @@
-"""Service layer for the Pipe-Works Build Tools web application."""
+"""Service layer for the Pipe-Works creator workbench web application."""

@@ -1,5 +1,5 @@
 """
-Server-side state for the Pipe-Works Build Tools web application.
+Server-side state for the Pipe-Works creator workbench web application.
 
 Holds ephemeral state for pipeline jobs and walker patches.
 All state is in-memory only — not persisted across restarts.

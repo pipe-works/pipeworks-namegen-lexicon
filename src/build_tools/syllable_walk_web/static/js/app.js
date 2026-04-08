@@ -1,6 +1,6 @@
 /*
    app.js
-   Entry-point orchestrator for the Pipe-Works Build Tools web application.
+   Entry-point orchestrator for the Pipe-Works creator workbench web application.
 
    This module owns shared state and boot wiring only. Feature implementations
    live in focused modules under core/, ui/, walker/, and pipeline/.
@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .then(data => {
       const el = document.getElementById('app-version');
       if (el && data.version) {
-        el.textContent = `build tools · v${data.version}`;
+        el.textContent = `creator workbench · v${data.version}`;
       }
     })
     .catch(() => { /* keep fallback text */ });
