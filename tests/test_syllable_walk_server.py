@@ -1,6 +1,6 @@
-"""Tests for the syllable walker web HTTP server module.
+"""Tests for the creator-workbench HTTP server module.
 
-This module tests the CorpusBuilderHandler request handler and server
+This module tests the creator-workbench request handler and server
 lifecycle functions:
 - Handler class attributes and configuration
 - Static file serving with directory traversal protection
@@ -18,11 +18,14 @@ import pytest
 
 from build_tools.syllable_walk_web.server import (
     CorpusBuilderHandler,
+    CreatorWorkbenchHandler,
+    _configure_handler_state,
+    _emit_runtime_message,
     find_available_port,
     run_server,
     select_auto_port,
 )
-from build_tools.syllable_walk_web.state import ServerState
+from build_tools.syllable_walk_web.state import CreatorWorkbenchState, ServerState
 
 # ============================================================
 # Fixtures
@@ -31,7 +34,7 @@ from build_tools.syllable_walk_web.state import ServerState
 
 @pytest.fixture
 def handler():
-    """Create a CorpusBuilderHandler with mocked socket I/O.
+    """Create a CreatorWorkbenchHandler with mocked socket I/O.
 
     This avoids needing a real HTTP server for unit tests.
     """
@@ -40,8 +43,8 @@ def handler():
     client_address = ("127.0.0.1", 9999)
 
     # Prevent __init__ from trying to handle a real request
-    with patch.object(CorpusBuilderHandler, "__init__", lambda self, *a, **kw: None):
-        h = CorpusBuilderHandler.__new__(CorpusBuilderHandler)
+    with patch.object(CreatorWorkbenchHandler, "__init__", lambda self, *a, **kw: None):
+        h = CreatorWorkbenchHandler.__new__(CreatorWorkbenchHandler)
         h.request = request
         h.client_address = client_address
         h.server = MagicMock()
@@ -58,7 +61,7 @@ def handler():
         h.end_headers = MagicMock()  # type: ignore[method-assign]
 
         # Give it a fresh state
-        h.state = ServerState()
+        h.state = CreatorWorkbenchState()
         h.verbose = False
 
     return h
@@ -69,20 +72,25 @@ def handler():
 # ============================================================
 
 
-class TestCorpusBuilderHandlerAttributes:
+class TestCreatorWorkbenchHandlerAttributes:
     """Test handler class-level attributes."""
 
     def test_server_version(self):
         """Test handler has a server version string."""
-        assert "PipeWorks" in CorpusBuilderHandler.server_version
+        assert "CreatorWorkbench" in CreatorWorkbenchHandler.server_version
 
     def test_default_verbose_is_true(self):
         """Test verbose defaults to True on the class."""
-        assert CorpusBuilderHandler.verbose is True
+        assert CreatorWorkbenchHandler.verbose is True
 
     def test_default_state_is_server_state(self):
-        """Test default state is a ServerState instance."""
-        assert isinstance(CorpusBuilderHandler.state, ServerState)
+        """Test default state is a creator-workbench state instance."""
+        assert isinstance(CreatorWorkbenchHandler.state, CreatorWorkbenchState)
+        assert isinstance(CreatorWorkbenchHandler.state, ServerState)
+
+    def test_legacy_handler_alias_points_to_canonical_handler(self):
+        """Legacy handler name should remain a simple alias."""
+        assert CorpusBuilderHandler is CreatorWorkbenchHandler
 
 
 # ============================================================
@@ -182,6 +190,13 @@ class TestServeStatic:
         handler.send_response.assert_called_once_with(200)
         # Verify some content was written
         assert len(handler.wfile.getvalue()) > 0
+
+    def test_serve_static_suppresses_body_for_head(self, handler):
+        """HEAD-style static responses should emit headers without a body."""
+        handler._response_body_enabled = False
+        handler._serve_static("index.html")
+        handler.send_response.assert_called_once_with(200)
+        assert handler.wfile.getvalue() == b""
 
     def test_index_uses_module_app_script(self, handler):
         """Test index.html loads app.js using an ES module script tag."""
@@ -290,6 +305,24 @@ class TestRouteGet:
         from pipeworks_namegen_lexicon import __version__
 
         assert body == {"version": __version__}
+
+
+class TestHeadRequests:
+    """Test HEAD request handling for the creator workbench."""
+
+    def test_head_root_uses_get_routing_without_body(self, handler):
+        """HEAD / should return headers only for the SPA entry document."""
+        handler.path = "/"
+        handler.do_HEAD()
+        handler.send_response.assert_called_once_with(200)
+        assert handler.wfile.getvalue() == b""
+
+    def test_head_api_route_returns_headers_without_body(self, handler):
+        """HEAD API routes should behave like GET without a response body."""
+        handler.path = "/api/settings"
+        handler.do_HEAD()
+        handler.send_response.assert_called_once_with(200)
+        assert handler.wfile.getvalue() == b""
 
 
 # ============================================================
@@ -468,8 +501,42 @@ class TestLogMessage:
         handler.verbose = True
         handler.log_message("test %s", "msg")
         captured = capsys.readouterr()
-        assert "syllable-walk-web INFO:" in captured.err
+        assert "creator-workbench-web INFO:" in captured.err
         assert "test msg" in captured.err
+
+
+class TestRuntimeMessageHelpers:
+    """Test shared runtime logging and handler-state helpers."""
+
+    def test_emit_runtime_message_stdout(self, capsys):
+        """Non-error runtime messages should go to stdout with the new prefix."""
+        _emit_runtime_message("hello world")
+        captured = capsys.readouterr()
+        assert captured.out == "creator-workbench-web INFO: hello world\n"
+        assert captured.err == ""
+
+    def test_emit_runtime_message_stderr(self, capsys):
+        """Error runtime messages should go to stderr with the new prefix."""
+        _emit_runtime_message("problem", error=True)
+        captured = capsys.readouterr()
+        assert captured.err == "creator-workbench-web INFO: problem\n"
+        assert captured.out == ""
+
+    def test_configure_handler_state_populates_shared_workbench_state(self, tmp_path):
+        """Helper should configure the shared handler state for future requests."""
+        _configure_handler_state(
+            verbose=False,
+            output_base=tmp_path / "output",
+            sessions_dir=tmp_path / "sessions",
+            corpus_dir_a=str(tmp_path / "patch_a"),
+            corpus_dir_b=str(tmp_path / "patch_b"),
+        )
+
+        assert CreatorWorkbenchHandler.verbose is False
+        assert CreatorWorkbenchHandler.state.output_base == tmp_path / "output"
+        assert CreatorWorkbenchHandler.state.sessions_base == (tmp_path / "sessions").resolve()
+        assert CreatorWorkbenchHandler.state.corpus_dir_a == tmp_path / "patch_a"
+        assert CreatorWorkbenchHandler.state.corpus_dir_b == tmp_path / "patch_b"
 
 
 # ============================================================
@@ -522,6 +589,18 @@ class TestFindAvailablePort:
             port = find_available_port(start=8000, max_tries=5)
             assert port == 8002
 
+    def test_binds_to_requested_host(self):
+        """Port probing should bind against the configured host."""
+        with patch("socket.socket") as mock_cls:
+            mock_sock = MagicMock()
+            mock_sock.bind = MagicMock(return_value=None)
+            mock_cls.return_value.__enter__ = MagicMock(return_value=mock_sock)
+            mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+            port = find_available_port(start=49152, max_tries=1, bind_host="127.0.0.1")
+            assert port == 49152
+            mock_sock.bind.assert_called_once_with(("127.0.0.1", 49152))
+
 
 # ============================================================
 # select_auto_port
@@ -535,7 +614,7 @@ class TestSelectAutoPort:
         """Should return a primary-range port without checking fallback."""
         calls: list[tuple[int, int]] = []
 
-        def fake_find_port(start: int, max_tries: int) -> int | None:
+        def fake_find_port(start: int, max_tries: int, *, bind_host: str) -> int | None:
             calls.append((start, max_tries))
             if start == 8000:
                 return 8004
@@ -548,7 +627,7 @@ class TestSelectAutoPort:
         """Should check 8100-8999 only after 8000-8099 has no free ports."""
         calls: list[tuple[int, int]] = []
 
-        def fake_find_port(start: int, max_tries: int) -> int | None:
+        def fake_find_port(start: int, max_tries: int, *, bind_host: str) -> int | None:
             calls.append((start, max_tries))
             if start == 8000:
                 return None
@@ -558,6 +637,17 @@ class TestSelectAutoPort:
 
         assert select_auto_port(find_port=fake_find_port) == 8120
         assert calls == [(8000, 100), (8100, 900)]
+
+    def test_passes_bind_host_to_find_port(self):
+        """Auto-port selection should probe against the configured host."""
+        calls: list[tuple[int, int, str]] = []
+
+        def fake_find_port(start: int, max_tries: int, *, bind_host: str) -> int | None:
+            calls.append((start, max_tries, bind_host))
+            return 8004 if start == 8000 else None
+
+        assert select_auto_port(find_port=fake_find_port, bind_host="127.0.0.1") == 8004
+        assert calls == [(8000, 100, "127.0.0.1")]
 
 
 # ============================================================
@@ -591,6 +681,7 @@ class TestRunServer:
             assert code == 0
             mock_server.serve_forever.assert_called_once()
             mock_server.shutdown.assert_called_once()
+            assert mock_server_cls.call_args[0][0] == ("127.0.0.1", 8765)
 
     def test_sets_class_state(self):
         """Test run_server configures handler class attributes."""
@@ -606,8 +697,8 @@ class TestRunServer:
             run_server(port=8765, verbose=False, output_base=output_base)
 
             # Verify class attributes were set
-            assert CorpusBuilderHandler.verbose is False
-            assert CorpusBuilderHandler.state.output_base == output_base
+            assert CreatorWorkbenchHandler.verbose is False
+            assert CreatorWorkbenchHandler.state.output_base == output_base
 
     def test_falls_back_when_configured_8000_range_port_is_busy(self):
         """Busy configured 8000-range ports should fallback to auto-selected ports."""
@@ -622,7 +713,7 @@ class TestRunServer:
 
             code = run_server(port=8000, verbose=False)
             assert code == 0
-            assert mock_server_cls.call_args[0][0] == ("", 8004)
+            assert mock_server_cls.call_args[0][0] == ("127.0.0.1", 8004)
 
     def test_returns_1_for_busy_configured_out_of_range_port(self):
         """Busy configured ports outside 8000-8999 should fail fast."""
@@ -633,6 +724,20 @@ class TestRunServer:
             code = run_server(port=9500, verbose=False)
             assert code == 1
             mock_server_cls.assert_not_called()
+
+    def test_uses_explicit_bind_host(self):
+        """Configured bind host should be passed into the HTTP server."""
+        with (
+            patch("build_tools.syllable_walk_web.server.is_port_available", return_value=True),
+            patch("build_tools.syllable_walk_web.server.ThreadingHTTPServer") as mock_server_cls,
+        ):
+            mock_server = MagicMock()
+            mock_server.serve_forever.side_effect = KeyboardInterrupt()
+            mock_server_cls.return_value = mock_server
+
+            code = run_server(bind_host="0.0.0.0", port=8765, verbose=False)
+            assert code == 0
+            assert mock_server_cls.call_args[0][0] == ("0.0.0.0", 8765)
 
 
 # ============================================================
@@ -655,7 +760,7 @@ class TestRunServerCorpusDirs:
 
             run_server(port=8765, verbose=False, corpus_dir_a=str(tmp_path))
 
-            assert CorpusBuilderHandler.state.corpus_dir_a == tmp_path
+            assert CreatorWorkbenchHandler.state.corpus_dir_a == tmp_path
 
     def test_stores_corpus_dir_b(self, tmp_path):
         """Test corpus_dir_b is stored in state."""
@@ -669,7 +774,7 @@ class TestRunServerCorpusDirs:
 
             run_server(port=8765, verbose=False, corpus_dir_b=str(tmp_path))
 
-            assert CorpusBuilderHandler.state.corpus_dir_b == tmp_path
+            assert CreatorWorkbenchHandler.state.corpus_dir_b == tmp_path
 
     def test_corpus_dirs_default_to_none(self):
         """Test corpus_dirs are None when not configured."""
@@ -683,8 +788,8 @@ class TestRunServerCorpusDirs:
 
             run_server(port=8765, verbose=False)
 
-            assert CorpusBuilderHandler.state.corpus_dir_a is None
-            assert CorpusBuilderHandler.state.corpus_dir_b is None
+            assert CreatorWorkbenchHandler.state.corpus_dir_a is None
+            assert CreatorWorkbenchHandler.state.corpus_dir_b is None
 
     def test_stores_sessions_dir_override(self, tmp_path):
         """Test sessions_dir override is stored in state as an absolute path."""
@@ -698,4 +803,6 @@ class TestRunServerCorpusDirs:
 
             run_server(port=8765, verbose=False, sessions_dir=tmp_path / "sessions_dir")
 
-            assert CorpusBuilderHandler.state.sessions_base == (tmp_path / "sessions_dir").resolve()
+            assert (
+                CreatorWorkbenchHandler.state.sessions_base == (tmp_path / "sessions_dir").resolve()
+            )

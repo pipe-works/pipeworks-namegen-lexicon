@@ -29,7 +29,7 @@ from build_tools.syllable_walk_web.services.walker_run_state_store import (
     RUN_STATE_FILENAME,
     verify_run_state,
 )
-from build_tools.syllable_walk_web.state import PatchState, ServerState
+from build_tools.syllable_walk_web.state import CreatorWorkbenchState, PatchState
 
 SESSION_SCHEMA_VERSION = 1
 SESSION_KIND = "walker_patch_session"
@@ -340,7 +340,7 @@ def _build_session_output_payload(
 
 def save_session(
     *,
-    state: ServerState,
+    state: CreatorWorkbenchState,
     label: str | None = None,
     session_id: str | None = None,
     repair_from_session_id: str | None = None,

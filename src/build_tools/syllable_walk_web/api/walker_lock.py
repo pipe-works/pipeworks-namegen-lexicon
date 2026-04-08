@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from build_tools.syllable_walk_web.state import ServerState
+from build_tools.syllable_walk_web.state import CreatorWorkbenchState
 
 
 def coerce_lock_holder_id(body: dict[str, Any]) -> tuple[str | None, str | None]:
@@ -55,7 +55,9 @@ def lock_conflict_error(
     }
 
 
-def enforce_active_session_lock(body: dict[str, Any], state: ServerState) -> dict[str, Any] | None:
+def enforce_active_session_lock(
+    body: dict[str, Any], state: CreatorWorkbenchState
+) -> dict[str, Any] | None:
     """Enforce active-session lock ownership for mutating requests.
 
     Behavior:
@@ -114,7 +116,7 @@ def enforce_active_session_lock(body: dict[str, Any], state: ServerState) -> dic
     }
 
 
-def clear_active_session_context(state: ServerState) -> None:
+def clear_active_session_context(state: CreatorWorkbenchState) -> None:
     """Clear active loaded-session metadata from server state."""
 
     state.active_session_id = None

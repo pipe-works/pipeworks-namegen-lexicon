@@ -1,7 +1,10 @@
-"""
-Command-line interface for the Pipe-Works creator workbench web application.
+"""Command-line interface for the Pipe-Works creator workbench.
 
-Provides ``python -m build_tools.syllable_walk_web`` entry point.
+This module keeps the external entrypoint intentionally small and explicit:
+load settings, apply command-line overrides, and start the packaged web
+server. The workbench is now the canonical product name, so the configuration
+surface prefers ``[creator_workbench]`` while still understanding the older
+``[build_tools]`` section name during transition.
 """
 
 from __future__ import annotations
@@ -12,16 +15,20 @@ from configparser import ConfigParser
 from dataclasses import dataclass
 from pathlib import Path
 
+WORKBENCH_SETTINGS_SECTION = "creator_workbench"
+LEGACY_SETTINGS_SECTION = "build_tools"
+
 
 @dataclass(frozen=True)
-class BuildToolsSettings:
-    """Settings loaded from the ``[build_tools]`` INI section.
+class CreatorWorkbenchSettings:
+    """Resolved configuration for the creator workbench server.
 
     Attributes:
         output_base: Base directory for pipeline run discovery.
         sessions_dir: Optional explicit session storage directory.
         corpus_dir_a: Directory containing runs to auto-load into Patch A.
         corpus_dir_b: Directory containing runs to auto-load into Patch B.
+        bind_host: Interface address to bind the local server to.
         port: Optional explicit port. ``None`` means auto-select.
         verbose: Print startup/runtime messages when True.
     """
@@ -30,20 +37,58 @@ class BuildToolsSettings:
     sessions_dir: Path | None = None
     corpus_dir_a: str | None = None
     corpus_dir_b: str | None = None
+    bind_host: str = "127.0.0.1"
     port: int | None = None
     verbose: bool = True
 
 
-def load_build_tools_settings(config_path: Path | None) -> BuildToolsSettings:
-    """Load build-tools settings from the ``[build_tools]`` INI section.
+def _read_optional_str(
+    parser: ConfigParser,
+    section_name: str,
+    option_name: str,
+) -> str | None:
+    """Read a string option and normalise blank values to ``None``.
+
+    The INI files used by the workbench often leave keys present but blank to
+    indicate "intentionally unset". Normalising that once keeps the main
+    loader readable and makes the blank-value behaviour consistent.
+    """
+
+    raw_value = parser.get(section_name, option_name, fallback=None)
+    if raw_value is None:
+        return None
+
+    stripped = raw_value.strip()
+    return stripped or None
+
+
+def _resolve_settings_section(parser: ConfigParser) -> str | None:
+    """Choose the INI section that should drive workbench settings.
+
+    ``[creator_workbench]`` is the canonical section because it matches the
+    maintained product name. ``[build_tools]`` remains a fallback so existing
+    local configs continue to work until they are intentionally rewritten.
+    """
+
+    if parser.has_section(WORKBENCH_SETTINGS_SECTION):
+        return WORKBENCH_SETTINGS_SECTION
+    if parser.has_section(LEGACY_SETTINGS_SECTION):
+        return LEGACY_SETTINGS_SECTION
+    return None
+
+
+def load_creator_workbench_settings(
+    config_path: Path | None,
+) -> CreatorWorkbenchSettings:
+    """Load creator-workbench settings from an INI file.
 
     Args:
         config_path: Path to INI file. If missing/None, defaults are used.
 
     Returns:
-        Parsed ``BuildToolsSettings`` instance.
+        Parsed :class:`CreatorWorkbenchSettings` instance.
     """
-    settings = BuildToolsSettings()
+    settings = CreatorWorkbenchSettings()
 
     if config_path is None or not config_path.exists():
         return settings
@@ -51,58 +96,46 @@ def load_build_tools_settings(config_path: Path | None) -> BuildToolsSettings:
     parser = ConfigParser()
     parser.read(config_path, encoding="utf-8")
 
-    if not parser.has_section("build_tools"):
+    section_name = _resolve_settings_section(parser)
+    if section_name is None:
         return settings
 
-    raw_output = parser.get("build_tools", "output_base", fallback=None)
+    raw_output = _read_optional_str(parser, section_name, "output_base")
     output_base: Path | None = None
     if raw_output is not None:
-        stripped = raw_output.strip()
-        if stripped:
-            output_base = Path(stripped).expanduser()
+        output_base = Path(raw_output).expanduser()
 
-    raw_sessions = parser.get("build_tools", "sessions_dir", fallback=None)
+    raw_sessions = _read_optional_str(parser, section_name, "sessions_dir")
     sessions_dir: Path | None = None
     if raw_sessions is not None:
-        stripped = raw_sessions.strip()
-        if stripped:
-            sessions_dir = Path(stripped).expanduser()
+        sessions_dir = Path(raw_sessions).expanduser()
 
-    raw_corpus_a = parser.get("build_tools", "corpus_dir_a", fallback=None)
-    corpus_dir_a: str | None = None
-    if raw_corpus_a is not None:
-        stripped = raw_corpus_a.strip()
-        if stripped:
-            corpus_dir_a = stripped
+    corpus_dir_a = _read_optional_str(parser, section_name, "corpus_dir_a")
 
-    raw_corpus_b = parser.get("build_tools", "corpus_dir_b", fallback=None)
-    corpus_dir_b: str | None = None
-    if raw_corpus_b is not None:
-        stripped = raw_corpus_b.strip()
-        if stripped:
-            corpus_dir_b = stripped
+    corpus_dir_b = _read_optional_str(parser, section_name, "corpus_dir_b")
 
-    raw_port = parser.get("build_tools", "port", fallback=None)
+    bind_host = _read_optional_str(parser, section_name, "bind_host") or settings.bind_host
+
+    raw_port = _read_optional_str(parser, section_name, "port")
     port: int | None = None
     if raw_port is not None:
-        stripped = raw_port.strip()
-        if stripped:
-            port = int(stripped)
+        port = int(raw_port)
 
-    verbose = parser.getboolean("build_tools", "verbose", fallback=settings.verbose)
+    verbose = parser.getboolean(section_name, "verbose", fallback=settings.verbose)
 
-    return BuildToolsSettings(
+    return CreatorWorkbenchSettings(
         output_base=output_base,
         sessions_dir=sessions_dir,
         corpus_dir_a=corpus_dir_a,
         corpus_dir_b=corpus_dir_b,
+        bind_host=bind_host,
         port=port,
         verbose=verbose,
     )
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
-    """Create and return the argument parser for the web server.
+    """Create and return the argument parser for the creator workbench.
 
     Returns:
         Configured ArgumentParser ready to parse command-line arguments.
@@ -130,6 +163,13 @@ Examples::
   # Use a custom config file
   python -m build_tools.syllable_walk_web --config server.ini
         """,
+    )
+
+    parser.add_argument(
+        "--bind-host",
+        type=str,
+        default=None,
+        help="Interface address to bind the local HTTP server to. Default: 127.0.0.1",
     )
 
     parser.add_argument(
@@ -169,9 +209,10 @@ Examples::
         type=str,
         default="server.ini",
         help=(
-            "Path to INI config file. Reads the [build_tools] section for "
-            "output_base, sessions_dir, corpus_dir_a, corpus_dir_b, port, "
-            "and verbose. CLI arguments override INI values. "
+            "Path to INI config file. Prefers [creator_workbench] and falls "
+            "back to [build_tools] for existing local configs. Reads "
+            "output_base, sessions_dir, corpus_dir_a, corpus_dir_b, bind_host, "
+            "port, and verbose. CLI arguments override INI values. "
             "Default: server.ini"
         ),
     )
@@ -193,7 +234,13 @@ def parse_arguments(args: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(args: list[str] | None = None) -> int:
-    """CLI entry point.
+    """Run the creator workbench CLI entrypoint.
+
+    Resolution order is:
+
+    1. Read the requested INI file when present.
+    2. Prefer ``[creator_workbench]`` settings over ``[build_tools]``.
+    3. Apply any explicit CLI overrides on top.
 
     Returns:
         Exit code: 0 for success, 1 for error, 130 for keyboard interrupt.
@@ -204,7 +251,7 @@ def main(args: list[str] | None = None) -> int:
         from build_tools.syllable_walk_web.server import run_server
 
         # Load INI settings, then let CLI args override.
-        ini_settings = load_build_tools_settings(Path(parsed.config))
+        ini_settings = load_creator_workbench_settings(Path(parsed.config))
 
         # Resolve output_base: CLI > INI > None
         if parsed.output_base is not None:
@@ -222,6 +269,9 @@ def main(args: list[str] | None = None) -> int:
         else:
             sessions_dir = None
 
+        # Resolve bind_host: CLI > INI > default
+        bind_host = parsed.bind_host if parsed.bind_host is not None else ini_settings.bind_host
+
         # Resolve port: CLI > INI > None
         port = parsed.port if parsed.port is not None else ini_settings.port
 
@@ -229,6 +279,7 @@ def main(args: list[str] | None = None) -> int:
         verbose = not parsed.quiet if parsed.quiet else ini_settings.verbose
 
         return run_server(
+            bind_host=bind_host,
             port=port,
             verbose=verbose,
             output_base=output_base,
@@ -245,3 +296,9 @@ def main(args: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# Transitional aliases preserve older imports while the repo adopts creator-
+# workbench terminology internally and in operator-facing documentation.
+BuildToolsSettings = CreatorWorkbenchSettings
+load_build_tools_settings = load_creator_workbench_settings

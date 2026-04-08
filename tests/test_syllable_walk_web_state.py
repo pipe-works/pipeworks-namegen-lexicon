@@ -1,14 +1,15 @@
-"""Tests for syllable walker web state dataclasses.
+"""Tests for creator-workbench state dataclasses.
 
 This module tests the in-memory state models:
 - PatchState defaults and field types
 - PipelineJobState defaults and field types
-- ServerState composition and independence
+- CreatorWorkbenchState composition and independence
 """
 
 from pathlib import Path
 
 from build_tools.syllable_walk_web.state import (
+    CreatorWorkbenchState,
     PatchState,
     PipelineJobState,
     ServerState,
@@ -99,27 +100,27 @@ class TestPipelineJobState:
 
 
 # ============================================================
-# ServerState Tests
+# CreatorWorkbenchState Tests
 # ============================================================
 
 
-class TestServerState:
-    """Test ServerState dataclass."""
+class TestCreatorWorkbenchState:
+    """Test creator-workbench state dataclass."""
 
     def test_default_output_base(self):
         """Test default output_base is _working/output."""
-        state = ServerState()
+        state = CreatorWorkbenchState()
         assert state.output_base == Path("_working/output")
         assert state.sessions_base is None
 
     def test_custom_output_base(self):
         """Test output_base can be set at construction."""
-        state = ServerState(output_base=Path("/tmp/custom"))
+        state = CreatorWorkbenchState(output_base=Path("/tmp/custom"))
         assert state.output_base == Path("/tmp/custom")
 
     def test_custom_sessions_base(self):
         """Test sessions_base can be set independently at construction."""
-        state = ServerState(
+        state = CreatorWorkbenchState(
             output_base=Path("/tmp/custom"),
             sessions_base=Path("/tmp/sessions"),
         )
@@ -128,20 +129,24 @@ class TestServerState:
 
     def test_patches_are_independent(self):
         """Test that patch_a and patch_b are separate instances."""
-        state = ServerState()
+        state = CreatorWorkbenchState()
         state.patch_a.run_id = "run-A"
         state.patch_b.run_id = "run-B"
         assert state.patch_a.run_id != state.patch_b.run_id
 
-    def test_patches_are_not_shared_across_server_states(self):
-        """Test that two ServerState instances don't share patches."""
-        s1 = ServerState()
-        s2 = ServerState()
+    def test_patches_are_not_shared_across_state_instances(self):
+        """Test that two creator-workbench states do not share patches."""
+        s1 = CreatorWorkbenchState()
+        s2 = CreatorWorkbenchState()
         s1.patch_a.syllable_count = 999
         assert s2.patch_a.syllable_count == 0
 
     def test_pipeline_job_is_fresh(self):
         """Test that pipeline_job starts idle."""
-        state = ServerState()
+        state = CreatorWorkbenchState()
         assert state.pipeline_job.status == "idle"
         assert state.pipeline_job.job_id is None
+
+    def test_server_state_alias_matches_canonical_type(self):
+        """Legacy ServerState alias should continue to point at the new type."""
+        assert ServerState is CreatorWorkbenchState

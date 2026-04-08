@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlparse
 
-from build_tools.syllable_walk_web.state import ServerState
+from build_tools.syllable_walk_web.state import CreatorWorkbenchState
 
 # Ensure .woff2 is recognized
 mimetypes.add_type("font/woff2", ".woff2")
@@ -28,42 +28,62 @@ AUTO_PORT_PRIMARY_START = 8000
 AUTO_PORT_PRIMARY_TRIES = 100  # 8000-8099
 AUTO_PORT_FALLBACK_START = 8100
 AUTO_PORT_FALLBACK_TRIES = 900  # 8100-8999
+WORKBENCH_LOG_LABEL = "creator-workbench-web"
 
 
 # ── Request Handler ──────────────────────────────────────────────────────────
 
 
-class CorpusBuilderHandler(BaseHTTPRequestHandler):
-    """HTTP request handler for the Corpus Builder web app.
+class CreatorWorkbenchHandler(BaseHTTPRequestHandler):
+    """HTTP request handler for the creator workbench web app.
 
-    Serves static files from the ``static/`` directory and routes
-    ``/api/*`` requests to the appropriate handlers.
+    The handler owns three concerns only:
+
+    1. Serve the packaged static frontend.
+    2. Route JSON API traffic to pipeline and walker handlers.
+    3. Expose shared :class:`CreatorWorkbenchState` across request instances.
+
+    Being explicit about that split helps keep the workbench product surface
+    coherent while the repo sheds the older "tool bundle" framing.
     """
 
-    server_version = "PipeWorksCorpusBuilder/0.1"
+    server_version = "PipeWorksCreatorWorkbench/0.1"
     verbose: bool = True
-    service_log_label: str = "syllable-walk-web"
-    state: ServerState = ServerState()
+    service_log_label: str = WORKBENCH_LOG_LABEL
+    state: CreatorWorkbenchState = CreatorWorkbenchState()
+    _response_body_enabled: bool = True
 
     # ── HTTP method dispatch ─────────────────────────────────────────────
 
     def do_GET(self) -> None:  # noqa: N802
         """Handle GET requests."""
+        self._response_body_enabled = True
+        self._handle_read_request()
+
+    def do_HEAD(self) -> None:  # noqa: N802
+        """Handle HEAD requests using the same routing as GET without a body."""
+        self._response_body_enabled = False
+        self._handle_read_request()
+
+    def _handle_read_request(self) -> None:
+        """Handle read-only routes shared by GET and HEAD requests."""
         parsed = urlparse(self.path)
         path = parsed.path
 
-        # Root → index.html
+        # The workbench frontend is a single-page app, so the root request
+        # always maps to the packaged entry document.
         if path == "/":
             self._serve_static("index.html")
             return
 
-        # Static files
+        # Static assets are served directly from the packaged bundle.
         if path.startswith("/static/"):
             rel_path = path[len("/static/") :]
             self._serve_static(rel_path)
             return
 
-        # API routes
+        # JSON API traffic is namespaced under /api to keep static serving and
+        # application operations clearly separated.
         if path.startswith("/api/"):
             self._route_get(path)
             return
@@ -84,10 +104,15 @@ class CorpusBuilderHandler(BaseHTTPRequestHandler):
     # ── Static file serving ──────────────────────────────────────────────
 
     def _serve_static(self, rel_path: str) -> None:
-        """Serve a file from the static directory."""
-        # resolve() canonicalises the path, stripping ".." segments.  The
-        # startswith() check below is the actual directory-traversal guard:
-        # it ensures the resolved path stays within STATIC_DIR.
+        """Serve a packaged frontend asset from the static directory.
+
+        This server sits directly on ``http.server`` without a framework
+        wrapper, so path handling is intentionally defensive:
+
+        - ``resolve()`` normalises the path.
+        - the prefix check rejects traversal outside ``STATIC_DIR``.
+        - filesystem failures are translated into clear HTTP errors.
+        """
         try:
             file_path = (STATIC_DIR / rel_path).resolve()
         except (ValueError, OSError):
@@ -118,14 +143,17 @@ class CorpusBuilderHandler(BaseHTTPRequestHandler):
         # no-cache prevents stale static assets during development.
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
-        self.wfile.write(data)
+        if self._response_body_enabled:
+            self.wfile.write(data)
 
     # ── API routing ─────────────────────────────────────────────────────
 
     def _route_get(self, path: str) -> None:
-        """Route GET /api/* requests."""
-        # Lazy imports avoid circular dependencies: api modules import from
-        # state.py, and this module creates ServerState at class level.
+        """Route ``GET /api/*`` requests to workbench read operations.
+
+        Lazy imports avoid circular dependencies because API modules depend on
+        :mod:`state`, while this module owns the shared class-level state.
+        """
         from build_tools.syllable_walk_web.api.pipeline import (
             handle_runs,
             handle_status,
@@ -136,7 +164,7 @@ class CorpusBuilderHandler(BaseHTTPRequestHandler):
             handle_stats,
         )
 
-        # Pipeline
+        # Pipeline routes expose run discovery and background job status.
         if path == "/api/pipeline/runs":
             from urllib.parse import parse_qs
             from urllib.parse import urlparse as _urlparse
@@ -149,7 +177,7 @@ class CorpusBuilderHandler(BaseHTTPRequestHandler):
             self._send_json(handle_status(self.state))
             return
 
-        # Walker
+        # Walker routes expose patch/session status and analysis views.
         if path == "/api/walker/stats":
             self._send_json(handle_stats(self.state))
             return
@@ -172,7 +200,8 @@ class CorpusBuilderHandler(BaseHTTPRequestHandler):
             self._send_json({"classes": list_name_classes()})
             return
 
-        # Settings
+        # Settings routes let the frontend inspect which filesystem locations
+        # the running workbench instance currently targets.
         if path == "/api/settings":
             from build_tools.syllable_walk_web.services.session_paths import (
                 resolve_sessions_base,
@@ -201,8 +230,11 @@ class CorpusBuilderHandler(BaseHTTPRequestHandler):
         self._send_error(404, f"Unknown API route: {path}")
 
     def _route_post(self, path: str) -> None:
-        """Route POST /api/* requests."""
-        # Lazy imports — see _route_get comment.
+        """Route ``POST /api/*`` requests to state-changing workbench actions.
+
+        These actions mutate runtime state, kick off background work, manage
+        saved sessions, and produce package export artifacts.
+        """
         from build_tools.syllable_walk_web.api.browse import handle_browse_directory
         from build_tools.syllable_walk_web.api.pipeline import (
             handle_cancel,
@@ -223,7 +255,7 @@ class CorpusBuilderHandler(BaseHTTPRequestHandler):
             handle_walk,
         )
 
-        # Shared
+        # Shared utility routes.
         if path == "/api/browse-directory":
             body = self._read_json_body()
             if body is None:
@@ -234,7 +266,7 @@ class CorpusBuilderHandler(BaseHTTPRequestHandler):
             self._send_json(result, status=status)
             return
 
-        # Settings
+        # Settings mutation routes.
         if path == "/api/settings/output-base":
             body = self._read_json_body()
             if body is None:
@@ -266,7 +298,7 @@ class CorpusBuilderHandler(BaseHTTPRequestHandler):
             )
             return
 
-        # Pipeline
+        # Pipeline control routes.
         if path == "/api/pipeline/start":
             body = self._read_json_body()
             if body is None:
@@ -282,7 +314,7 @@ class CorpusBuilderHandler(BaseHTTPRequestHandler):
             self._send_json(result, status=status)
             return
 
-        # Walker
+        # Walker action routes.
         if path == "/api/walker/load-corpus":
             body = self._read_json_body()
             if body is None:
@@ -405,7 +437,8 @@ class CorpusBuilderHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        if self._response_body_enabled:
+            self.wfile.write(body)
 
     def _send_error(self, status: int, message: str) -> None:
         """Send a JSON error response."""
@@ -418,7 +451,8 @@ class CorpusBuilderHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
         self.end_headers()
-        self.wfile.write(data)
+        if self._response_body_enabled:
+            self.wfile.write(data)
 
     def _read_json_body(self) -> dict | None:
         """Read and parse JSON request body."""
@@ -435,7 +469,7 @@ class CorpusBuilderHandler(BaseHTTPRequestHandler):
     # ── Logging ──────────────────────────────────────────────────────────
 
     def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
-        """Override to respect verbose flag."""
+        """Emit request logs only when the workbench is in verbose mode."""
         if self.verbose:
             message = format % args
             sys.stderr.write(
@@ -447,7 +481,12 @@ class CorpusBuilderHandler(BaseHTTPRequestHandler):
 # ── Server lifecycle ─────────────────────────────────────────────────────────
 
 
-def find_available_port(start: int = 8000, max_tries: int = 100) -> int | None:
+def find_available_port(
+    start: int = 8000,
+    max_tries: int = 100,
+    *,
+    bind_host: str = "127.0.0.1",
+) -> int | None:
     """Find an available port starting from *start*.
 
     Tries ports ``start`` through ``start + max_tries - 1``.
@@ -458,20 +497,70 @@ def find_available_port(start: int = 8000, max_tries: int = 100) -> int | None:
     for port in range(start, start + max_tries):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind(("", port))
+                s.bind((bind_host, port))
                 return port
         except OSError:
             continue
     return None
 
 
-def is_port_available(port: int) -> bool:
-    """Return ``True`` when a specific TCP port can be bound."""
+def _emit_runtime_message(message: str, *, error: bool = False) -> None:
+    """Emit a consistently prefixed runtime message for the workbench server.
+
+    The workbench previously had several hard-coded log prefixes spread across
+    startup, shutdown, and error branches. Centralising that formatting keeps
+    the product name consistent and makes future logger changes a one-place
+    edit rather than a string-hunt across the file.
+
+    Args:
+        message: The message body to emit after the common prefix.
+        error: When ``True`` write to stderr, otherwise write to stdout.
+    """
+
+    stream = sys.stderr if error else sys.stdout
+    stream.write(f"{WORKBENCH_LOG_LABEL} INFO: {message}\n")
+
+
+def _configure_handler_state(
+    *,
+    verbose: bool,
+    output_base: Path | None,
+    sessions_dir: Path | None,
+    corpus_dir_a: str | None,
+    corpus_dir_b: str | None,
+) -> None:
+    """Populate the shared handler state before the server starts.
+
+    ``http.server`` creates a fresh request-handler instance per request, so
+    shared workbench state must be attached to the handler class instead of a
+    single long-lived handler object. This helper keeps that setup explicit and
+    testable.
+    """
+
+    CreatorWorkbenchHandler.verbose = verbose
+    if output_base is not None:
+        CreatorWorkbenchHandler.state = CreatorWorkbenchState(output_base=output_base)
+    else:
+        CreatorWorkbenchHandler.state = CreatorWorkbenchState()
+
+    if sessions_dir is not None:
+        CreatorWorkbenchHandler.state.sessions_base = sessions_dir.expanduser().resolve()
+
+    # The patch auto-load directories are optional because many workflows start
+    # from run discovery rather than forcing a preselected pair of corpora.
+    if corpus_dir_a:
+        CreatorWorkbenchHandler.state.corpus_dir_a = Path(corpus_dir_a)
+    if corpus_dir_b:
+        CreatorWorkbenchHandler.state.corpus_dir_b = Path(corpus_dir_b)
+
+
+def is_port_available(port: int, *, bind_host: str = "127.0.0.1") -> bool:
+    """Return ``True`` when a specific TCP port can be bound on ``bind_host``."""
     import socket
 
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(("", port))
+            s.bind((bind_host, port))
             return True
     except OSError:
         return False
@@ -480,18 +569,20 @@ def is_port_available(port: int) -> bool:
 def select_auto_port(
     *,
     find_port: Callable[[int, int], int | None] = find_available_port,
+    bind_host: str = "127.0.0.1",
 ) -> int | None:
     """Select an auto port by preferring the 8000-range first.
 
     Checks 8000-8099 first, then falls back to 8100-8999.
     """
-    port = find_port(AUTO_PORT_PRIMARY_START, AUTO_PORT_PRIMARY_TRIES)
+    port = find_port(AUTO_PORT_PRIMARY_START, AUTO_PORT_PRIMARY_TRIES, bind_host=bind_host)
     if port is not None:
         return port
-    return find_port(AUTO_PORT_FALLBACK_START, AUTO_PORT_FALLBACK_TRIES)
+    return find_port(AUTO_PORT_FALLBACK_START, AUTO_PORT_FALLBACK_TRIES, bind_host=bind_host)
 
 
 def run_server(
+    bind_host: str = "127.0.0.1",
     port: int | None = None,
     verbose: bool = True,
     output_base: Path | None = None,
@@ -499,9 +590,10 @@ def run_server(
     corpus_dir_a: str | None = None,
     corpus_dir_b: str | None = None,
 ) -> int:
-    """Start the HTTP server.
+    """Start the creator workbench HTTP server.
 
     Args:
+        bind_host: Interface address to bind the local HTTP server to.
         port: Port to listen on. If ``None``, checks 8000-8099 first, then 8100-8999.
         verbose: If ``True``, log HTTP requests to stderr.
         output_base: Base path for pipeline run discovery.
@@ -515,70 +607,63 @@ def run_server(
         Exit code: 0 for clean shutdown, 1 for error.
     """
     if port is None:
-        port = select_auto_port()
+        port = select_auto_port(bind_host=bind_host)
         if port is None:
-            print(
-                "syllable-walk-web INFO: Error: could not find an available port "
+            _emit_runtime_message(
+                "Error: could not find an available port "
                 "(tried 8000-8999; prefers 8000-8099 first)",
-                file=sys.stderr,
+                error=True,
             )
             return 1
-    elif not is_port_available(port):
+    elif not is_port_available(port, bind_host=bind_host):
         if AUTO_PORT_PRIMARY_START <= port < (AUTO_PORT_FALLBACK_START + AUTO_PORT_FALLBACK_TRIES):
             configured_port = port
-            port = select_auto_port()
+            port = select_auto_port(bind_host=bind_host)
             if port is None:
-                print(
-                    "syllable-walk-web INFO: Error: configured port unavailable and no "
-                    "fallback port found (tried 8000-8999; prefers 8000-8099 first)",
-                    file=sys.stderr,
+                _emit_runtime_message(
+                    "Error: configured port unavailable and no fallback port found "
+                    "(tried 8000-8999; prefers 8000-8099 first)",
+                    error=True,
                 )
                 return 1
             if verbose:
-                print(
-                    "syllable-walk-web INFO: "
+                _emit_runtime_message(
                     f"Configured port {configured_port} unavailable; using auto-selected "
                     f"port {port} (prefers 8000-8099)."
                 )
         else:
-            print(
-                f"syllable-walk-web INFO: Error: configured port {port} is already in use.",
-                file=sys.stderr,
+            _emit_runtime_message(
+                f"Error: configured port {port} is already in use.",
+                error=True,
             )
             return 1
 
-    # State is stored as class attributes (not instance attributes) because
-    # BaseHTTPRequestHandler creates a new handler instance per request.
-    # Shared state must therefore live on the class itself.
-    CorpusBuilderHandler.verbose = verbose
-    if output_base is not None:
-        CorpusBuilderHandler.state = ServerState(output_base=output_base)
-    else:
-        CorpusBuilderHandler.state = ServerState()
-    if sessions_dir is not None:
-        CorpusBuilderHandler.state.sessions_base = sessions_dir.expanduser().resolve()
-
-    # Per-patch corpus directories from INI config.
-    if corpus_dir_a:
-        CorpusBuilderHandler.state.corpus_dir_a = Path(corpus_dir_a)
-    if corpus_dir_b:
-        CorpusBuilderHandler.state.corpus_dir_b = Path(corpus_dir_b)
+    _configure_handler_state(
+        verbose=verbose,
+        output_base=output_base,
+        sessions_dir=sessions_dir,
+        corpus_dir_a=corpus_dir_a,
+        corpus_dir_b=corpus_dir_b,
+    )
 
     # ThreadingHTTPServer (not plain HTTPServer) handles requests
     # concurrently — needed because the browser may have multiple pending
     # XHR requests (e.g. polling pipeline status while loading analysis).
-    server = ThreadingHTTPServer(("", port), CorpusBuilderHandler)
+    server = ThreadingHTTPServer((bind_host, port), CreatorWorkbenchHandler)
 
     if verbose:
-        print(
-            f"syllable-walk-web INFO: Pipe-Works creator workbench serving on http://localhost:{port}"
-        )
-        print("syllable-walk-web INFO: Press Ctrl+C to stop.")
+        _emit_runtime_message(f"Pipe-Works creator workbench serving on http://{bind_host}:{port}")
+        _emit_runtime_message("Press Ctrl+C to stop.")
 
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         if verbose:
-            print("syllable-walk-web INFO: Shutting down.")
+            _emit_runtime_message("Shutting down.")
         server.shutdown()
     return 0
+
+
+# Transitional alias for older imports. The canonical class name now matches
+# the maintained product surface.
+CorpusBuilderHandler = CreatorWorkbenchHandler

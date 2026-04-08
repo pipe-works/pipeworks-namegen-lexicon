@@ -1,4 +1,8 @@
-"""Entry point for ``python -m build_tools.syllable_walk_web``."""
+"""Module entrypoint for the Pipe-Works creator workbench.
+
+This stays intentionally tiny so ``python -m build_tools.syllable_walk_web``
+behaves exactly like the installed ``pipeworks-namegen-lexicon-web`` script.
+"""
 
 import sys
 

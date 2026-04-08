@@ -62,6 +62,14 @@ The typical creator flow is:
 The web workbench exists to make this full chain usable from one maintained
 interactive surface.
 
+Hosted creator-workbench note
+-----------------------------
+
+On Luminal, the maintained workbench is no longer just a local development
+entrypoint. It is now hosted as a real browser-facing development surface at
+``creator.pipeworks.luminal.local`` behind nginx, while still keeping runtime
+state separate from the repo checkout.
+
 Retired Surfaces
 ----------------
 

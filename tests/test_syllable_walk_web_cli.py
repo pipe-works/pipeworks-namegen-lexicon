@@ -1,10 +1,9 @@
-"""Tests for syllable walker web CLI.
+"""Tests for the creator-workbench CLI.
 
 This module tests the command-line interface for the web server:
 - Argument parsing (create_argument_parser, parse_arguments)
 - Main entry point and error handling
-- Module entry point (__main__)
-- INI config loading (load_build_tools_settings)
+- INI config loading and section precedence
 """
 
 from pathlib import Path
@@ -14,8 +13,10 @@ import pytest
 
 from build_tools.syllable_walk_web.cli import (
     BuildToolsSettings,
+    CreatorWorkbenchSettings,
     create_argument_parser,
     load_build_tools_settings,
+    load_creator_workbench_settings,
     main,
     parse_arguments,
 )
@@ -40,6 +41,12 @@ class TestCreateArgumentParser:
         parser = create_argument_parser()
         args = parser.parse_args(["--port", "9000"])
         assert args.port == 9000
+
+    def test_parser_has_bind_host_argument(self):
+        """Test parser has --bind-host argument."""
+        parser = create_argument_parser()
+        args = parser.parse_args(["--bind-host", "0.0.0.0"])
+        assert args.bind_host == "0.0.0.0"
 
     def test_parser_has_quiet_argument(self):
         """Test parser has --quiet argument."""
@@ -75,6 +82,7 @@ class TestCreateArgumentParser:
         """Test parser default values."""
         parser = create_argument_parser()
         args = parser.parse_args([])
+        assert args.bind_host is None
         assert args.port is None
         assert args.quiet is False
         assert args.output_base is None
@@ -88,6 +96,7 @@ class TestParseArguments:
     def test_parse_no_args(self):
         """Test parsing with no arguments."""
         args = parse_arguments([])
+        assert args.bind_host is None
         assert args.port is None
         assert args.quiet is False
         assert args.output_base is None
@@ -98,6 +107,11 @@ class TestParseArguments:
         """Test parsing --port argument."""
         args = parse_arguments(["--port", "8080"])
         assert args.port == 8080
+
+    def test_parse_bind_host_arg(self):
+        """Test parsing --bind-host argument."""
+        args = parse_arguments(["--bind-host", "127.0.0.1"])
+        assert args.bind_host == "127.0.0.1"
 
     def test_parse_quiet_arg(self):
         """Test parsing --quiet argument."""
@@ -125,6 +139,8 @@ class TestParseArguments:
             [
                 "--port",
                 "9000",
+                "--bind-host",
+                "0.0.0.0",
                 "--quiet",
                 "--output-base",
                 "/tmp",
@@ -134,6 +150,7 @@ class TestParseArguments:
                 "custom.ini",
             ]
         )
+        assert args.bind_host == "0.0.0.0"
         assert args.port == 9000
         assert args.quiet is True
         assert args.output_base == "/tmp"
@@ -151,70 +168,106 @@ class TestParseArguments:
 # ============================================================
 
 
-class TestLoadBuildToolsSettings:
-    """Test load_build_tools_settings function."""
+class TestLoadCreatorWorkbenchSettings:
+    """Test creator-workbench settings loading and fallback behaviour."""
 
     def test_defaults_when_no_file(self, tmp_path: Path):
         """Missing config file should return default settings."""
         missing = tmp_path / "does-not-exist.ini"
-        settings = load_build_tools_settings(missing)
+        settings = load_creator_workbench_settings(missing)
 
         assert settings.output_base is None
         assert settings.corpus_dir_a is None
         assert settings.corpus_dir_b is None
         assert settings.sessions_dir is None
+        assert settings.bind_host == "127.0.0.1"
         assert settings.port is None
         assert settings.verbose is True
 
     def test_defaults_when_none(self):
         """None config path should return default settings."""
-        settings = load_build_tools_settings(None)
+        settings = load_creator_workbench_settings(None)
 
         assert settings.output_base is None
         assert settings.corpus_dir_a is None
         assert settings.corpus_dir_b is None
         assert settings.sessions_dir is None
+        assert settings.bind_host == "127.0.0.1"
         assert settings.port is None
         assert settings.verbose is True
 
-    def test_defaults_when_no_build_tools_section(self, tmp_path: Path):
-        """INI without [build_tools] section should return defaults."""
+    def test_defaults_when_no_supported_section(self, tmp_path: Path):
+        """INI without workbench or legacy sections should return defaults."""
         ini_path = tmp_path / "server.ini"
         ini_path.write_text("[webapp]\nhost = 127.0.0.1\n", encoding="utf-8")
-        settings = load_build_tools_settings(ini_path)
+        settings = load_creator_workbench_settings(ini_path)
 
         assert settings.output_base is None
         assert settings.corpus_dir_a is None
         assert settings.corpus_dir_b is None
         assert settings.sessions_dir is None
+        assert settings.bind_host == "127.0.0.1"
         assert settings.port is None
         assert settings.verbose is True
 
-    def test_reads_all_values(self, tmp_path: Path):
-        """All [build_tools] values should be parsed correctly."""
+    def test_reads_all_values_from_creator_workbench_section(self, tmp_path: Path):
+        """All preferred ``[creator_workbench]`` values should be parsed correctly."""
         ini_path = tmp_path / "server.ini"
         ini_path.write_text(
             "\n".join(
                 [
-                    "[build_tools]",
+                    "[creator_workbench]",
                     "output_base = _working/output",
                     "sessions_dir = _working/sessions",
                     "corpus_dir_a = 20260121_084017_nltk",
                     "corpus_dir_b = 20260122_091500_pyphen",
+                    "bind_host = 0.0.0.0",
                     "port = 9000",
                     "verbose = false",
                 ]
             ),
             encoding="utf-8",
         )
-        settings = load_build_tools_settings(ini_path)
+        settings = load_creator_workbench_settings(ini_path)
 
         assert settings.output_base == Path("_working/output")
         assert settings.sessions_dir == Path("_working/sessions")
         assert settings.corpus_dir_a == "20260121_084017_nltk"
         assert settings.corpus_dir_b == "20260122_091500_pyphen"
+        assert settings.bind_host == "0.0.0.0"
         assert settings.port == 9000
         assert settings.verbose is False
+
+    def test_falls_back_to_legacy_build_tools_section(self, tmp_path: Path):
+        """Legacy ``[build_tools]`` settings should still be understood."""
+        ini_path = tmp_path / "server.ini"
+        ini_path.write_text("[build_tools]\nport = 9100\nverbose = false\n", encoding="utf-8")
+
+        settings = load_creator_workbench_settings(ini_path)
+
+        assert settings.bind_host == "127.0.0.1"
+        assert settings.port == 9100
+        assert settings.verbose is False
+
+    def test_prefers_creator_workbench_over_legacy_section(self, tmp_path: Path):
+        """Preferred workbench settings should win when both sections exist."""
+        ini_path = tmp_path / "server.ini"
+        ini_path.write_text(
+            "\n".join(
+                [
+                    "[build_tools]",
+                    "port = 9100",
+                    "",
+                    "[creator_workbench]",
+                    "port = 9200",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        settings = load_creator_workbench_settings(ini_path)
+
+        assert settings.port == 9200
 
     def test_blank_output_base_returns_none(self, tmp_path: Path):
         """Blank output_base should resolve to None."""
@@ -229,7 +282,7 @@ class TestLoadBuildToolsSettings:
             ),
             encoding="utf-8",
         )
-        settings = load_build_tools_settings(ini_path)
+        settings = load_creator_workbench_settings(ini_path)
 
         assert settings.output_base is None
         assert settings.port is None
@@ -247,7 +300,7 @@ class TestLoadBuildToolsSettings:
             ),
             encoding="utf-8",
         )
-        settings = load_build_tools_settings(ini_path)
+        settings = load_creator_workbench_settings(ini_path)
 
         assert settings.corpus_dir_a is None
         assert settings.corpus_dir_b is None
@@ -264,7 +317,7 @@ class TestLoadBuildToolsSettings:
             ),
             encoding="utf-8",
         )
-        settings = load_build_tools_settings(ini_path)
+        settings = load_creator_workbench_settings(ini_path)
 
         assert settings.sessions_dir is None
 
@@ -280,7 +333,7 @@ class TestLoadBuildToolsSettings:
             ),
             encoding="utf-8",
         )
-        settings = load_build_tools_settings(ini_path)
+        settings = load_creator_workbench_settings(ini_path)
 
         assert settings.corpus_dir_a == "20260121_084017_nltk"
         assert settings.corpus_dir_b is None
@@ -297,7 +350,7 @@ class TestLoadBuildToolsSettings:
             ),
             encoding="utf-8",
         )
-        settings = load_build_tools_settings(ini_path)
+        settings = load_creator_workbench_settings(ini_path)
 
         assert settings.output_base == Path("~/my_output").expanduser()
 
@@ -313,7 +366,7 @@ class TestLoadBuildToolsSettings:
             ),
             encoding="utf-8",
         )
-        settings = load_build_tools_settings(ini_path)
+        settings = load_creator_workbench_settings(ini_path)
 
         assert settings.sessions_dir == Path("~/my_sessions").expanduser()
 
@@ -321,11 +374,19 @@ class TestLoadBuildToolsSettings:
         """Returned settings should be a frozen BuildToolsSettings instance."""
         ini_path = tmp_path / "server.ini"
         ini_path.write_text("[build_tools]\nverbose = true\n", encoding="utf-8")
-        settings = load_build_tools_settings(ini_path)
+        settings = load_creator_workbench_settings(ini_path)
 
+        assert isinstance(settings, CreatorWorkbenchSettings)
         assert isinstance(settings, BuildToolsSettings)
         with pytest.raises(AttributeError):
             settings.verbose = False  # type: ignore[misc]
+
+    def test_legacy_loader_alias_matches_canonical_loader(self, tmp_path: Path):
+        """Legacy loader alias should resolve through the canonical loader."""
+        ini_path = tmp_path / "server.ini"
+        ini_path.write_text("[creator_workbench]\nverbose = false\n", encoding="utf-8")
+
+        assert load_build_tools_settings(ini_path) == load_creator_workbench_settings(ini_path)
 
 
 # ============================================================
@@ -346,6 +407,7 @@ class TestMain:
             exit_code = main(["--config", "nonexistent.ini"])
             assert exit_code == 0
             mock_run.assert_called_once_with(
+                bind_host="127.0.0.1",
                 port=None,
                 verbose=True,
                 output_base=None,
@@ -359,6 +421,7 @@ class TestMain:
         with patch("build_tools.syllable_walk_web.server.run_server", return_value=0) as mock_run:
             main(["--port", "9000", "--config", "nonexistent.ini"])
             mock_run.assert_called_once_with(
+                bind_host="127.0.0.1",
                 port=9000,
                 verbose=True,
                 output_base=None,
@@ -372,6 +435,7 @@ class TestMain:
         with patch("build_tools.syllable_walk_web.server.run_server", return_value=0) as mock_run:
             main(["--quiet", "--config", "nonexistent.ini"])
             mock_run.assert_called_once_with(
+                bind_host="127.0.0.1",
                 port=None,
                 verbose=False,
                 output_base=None,
@@ -385,6 +449,7 @@ class TestMain:
         with patch("build_tools.syllable_walk_web.server.run_server", return_value=0) as mock_run:
             main(["--output-base", "/tmp/output", "--config", "nonexistent.ini"])
             mock_run.assert_called_once_with(
+                bind_host="127.0.0.1",
                 port=None,
                 verbose=True,
                 output_base=Path("/tmp/output"),
@@ -401,6 +466,7 @@ class TestMain:
                 [
                     "[build_tools]",
                     "output_base = _working/output",
+                    "bind_host = 127.0.0.2",
                     "port = 9500",
                     "verbose = false",
                 ]
@@ -411,6 +477,7 @@ class TestMain:
         with patch("build_tools.syllable_walk_web.server.run_server", return_value=0) as mock_run:
             main(["--config", str(ini_path)])
             mock_run.assert_called_once_with(
+                bind_host="127.0.0.2",
                 port=9500,
                 verbose=False,
                 output_base=Path("_working/output"),
@@ -436,6 +503,7 @@ class TestMain:
         with patch("build_tools.syllable_walk_web.server.run_server", return_value=0) as mock_run:
             main(["--config", str(ini_path)])
             mock_run.assert_called_once_with(
+                bind_host="127.0.0.1",
                 port=None,
                 verbose=True,
                 output_base=None,
@@ -460,6 +528,7 @@ class TestMain:
         with patch("build_tools.syllable_walk_web.server.run_server", return_value=0) as mock_run:
             main(["--port", "7000", "--config", str(ini_path)])
             mock_run.assert_called_once_with(
+                bind_host="127.0.0.1",
                 port=7000,
                 verbose=True,
                 output_base=None,
@@ -484,6 +553,7 @@ class TestMain:
         with patch("build_tools.syllable_walk_web.server.run_server", return_value=0) as mock_run:
             main(["--output-base", "/custom/path", "--config", str(ini_path)])
             mock_run.assert_called_once_with(
+                bind_host="127.0.0.1",
                 port=None,
                 verbose=True,
                 output_base=Path("/custom/path"),
@@ -508,6 +578,7 @@ class TestMain:
         with patch("build_tools.syllable_walk_web.server.run_server", return_value=0) as mock_run:
             main(["--quiet", "--config", str(ini_path)])
             mock_run.assert_called_once_with(
+                bind_host="127.0.0.1",
                 port=None,
                 verbose=False,
                 output_base=None,
@@ -521,6 +592,7 @@ class TestMain:
         with patch("build_tools.syllable_walk_web.server.run_server", return_value=0) as mock_run:
             main(["--sessions-dir", str(tmp_path / "sessions"), "--config", "nonexistent.ini"])
             mock_run.assert_called_once_with(
+                bind_host="127.0.0.1",
                 port=None,
                 verbose=True,
                 output_base=None,
@@ -544,10 +616,25 @@ class TestMain:
         with patch("build_tools.syllable_walk_web.server.run_server", return_value=0) as mock_run:
             main(["--config", str(ini_path)])
             mock_run.assert_called_once_with(
+                bind_host="127.0.0.1",
                 port=None,
                 verbose=True,
                 output_base=None,
                 sessions_dir=Path("/tmp/ini-sessions"),
+                corpus_dir_a=None,
+                corpus_dir_b=None,
+            )
+
+    def test_main_passes_bind_host_to_server(self):
+        """CLI --bind-host should be forwarded to run_server."""
+        with patch("build_tools.syllable_walk_web.server.run_server", return_value=0) as mock_run:
+            main(["--bind-host", "0.0.0.0", "--config", "nonexistent.ini"])
+            mock_run.assert_called_once_with(
+                bind_host="0.0.0.0",
+                port=None,
+                verbose=True,
+                output_base=None,
+                sessions_dir=None,
                 corpus_dir_a=None,
                 corpus_dir_b=None,
             )

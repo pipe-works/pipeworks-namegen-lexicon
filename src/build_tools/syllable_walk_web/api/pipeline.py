@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from build_tools.syllable_walk_web.state import ServerState
+from build_tools.syllable_walk_web.state import CreatorWorkbenchState
 
 
 def _coerce_length_field(value: Any, field_name: str) -> tuple[int | None, str | None]:
@@ -23,7 +23,7 @@ def _coerce_length_field(value: Any, field_name: str) -> tuple[int | None, str |
     return coerced, None
 
 
-def handle_start(body: dict[str, Any], state: ServerState) -> dict[str, Any]:
+def handle_start(body: dict[str, Any], state: CreatorWorkbenchState) -> dict[str, Any]:
     """Handle POST /api/pipeline/start.
 
     Starts a new pipeline run in a background thread.
@@ -94,7 +94,7 @@ def handle_start(body: dict[str, Any], state: ServerState) -> dict[str, Any]:
     }
 
 
-def handle_status(state: ServerState) -> dict[str, Any]:
+def handle_status(state: CreatorWorkbenchState) -> dict[str, Any]:
     """Handle GET /api/pipeline/status.
 
     Returns current pipeline job status with log lines.
@@ -110,7 +110,7 @@ def handle_status(state: ServerState) -> dict[str, Any]:
     return get_status(state.pipeline_job)
 
 
-def handle_cancel(state: ServerState) -> dict[str, Any]:
+def handle_cancel(state: CreatorWorkbenchState) -> dict[str, Any]:
     """Handle POST /api/pipeline/cancel.
 
     Cancels the running pipeline job.
@@ -133,7 +133,7 @@ def handle_cancel(state: ServerState) -> dict[str, Any]:
     return {"status": "cancelled"}
 
 
-def handle_runs(state: ServerState, patch: str | None = None) -> dict[str, Any]:
+def handle_runs(state: CreatorWorkbenchState, patch: str | None = None) -> dict[str, Any]:
     """Handle GET /api/pipeline/runs.
 
     Lists discovered pipeline runs.  When *patch* is ``"a"`` or ``"b"``

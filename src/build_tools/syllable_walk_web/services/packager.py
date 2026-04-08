@@ -15,11 +15,11 @@ import zipfile
 from datetime import datetime, timezone
 from typing import Any
 
-from build_tools.syllable_walk_web.state import PatchState, ServerState
+from build_tools.syllable_walk_web.state import CreatorWorkbenchState, PatchState
 
 
 def build_package(
-    state: ServerState,
+    state: CreatorWorkbenchState,
     *,
     name: str = "corpus-package",
     version: str = "0.1.0",
@@ -193,7 +193,7 @@ def _build_manifest(
     *,
     name: str,
     version: str,
-    state: ServerState,
+    state: CreatorWorkbenchState,
     files_included: list[dict[str, Any]],
     include_flags: dict[str, bool],
 ) -> dict[str, Any]:
@@ -225,7 +225,7 @@ def _patch_summary(patch: PatchState) -> dict[str, Any]:
 
 def _persist_to_disk(
     *,
-    state: ServerState,
+    state: CreatorWorkbenchState,
     name: str,
     version: str,
     zip_bytes: bytes,
