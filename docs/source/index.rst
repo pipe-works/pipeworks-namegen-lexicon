@@ -1,14 +1,24 @@
 Pipeworks Namegen Lexicon
 =========================
 
-Overview
-========
+`pipeworks-namegen-lexicon` is the creator-facing PipeWorks repository.
 
-This repository owns the lexicon pipeline and associated web tooling used to
-prepare package artifacts for name generation systems.
+It owns the corpus-to-lexicon workflow: extraction, normalization, feature
+annotation, exploratory syllable walking, candidate generation, selection, and
+package building for downstream runtime import.
 
-Current migration status:
+This documentation is intentionally smaller and more opinionated than the old
+monolith docs. The goal is to explain the maintained web-first creator surface
+and the repository boundary clearly, without restoring the full historical doc
+sprawl.
 
-- Build-time pipeline modules are extracted under ``src/build_tools``.
-- Web UI/services are maintained via ``build_tools.syllable_walk_web``.
-- TUI surfaces are intentionally retired and are not part of maintained scope.
+.. toctree::
+   :maxdepth: 2
+   :caption: Guide
+
+   philosophy
+   tools-overview
+   workbench
+   package-flow
+   development
+   testing
