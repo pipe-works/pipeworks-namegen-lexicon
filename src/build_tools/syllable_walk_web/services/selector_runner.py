@@ -64,9 +64,7 @@ _policies: dict | None = None
 # Bug history: this was previously parents[3], which resolved to src/ and
 # caused FileNotFoundError, leaving the Name Class dropdown permanently stuck
 # on "Loading Classes..." in the Combine tab of the creator workbench.
-NAME_CLASSES_PATH: Path = (
-    Path(__file__).resolve().parents[4] / "data" / "name_classes.yml"
-)
+NAME_CLASSES_PATH: Path = Path(__file__).resolve().parents[4] / "data" / "name_classes.yml"
 
 
 # ---------------------------------------------------------------------------
