@@ -700,20 +700,15 @@ class TestRunServer:
             assert CreatorWorkbenchHandler.verbose is False
             assert CreatorWorkbenchHandler.state.output_base == output_base
 
-    def test_falls_back_when_configured_8000_range_port_is_busy(self):
-        """Busy configured 8000-range ports should fallback to auto-selected ports."""
+    def test_returns_1_for_busy_configured_8000_range_port(self):
+        """Busy configured ports in the 8000 range should fail fast, not silently fall back."""
         with (
             patch("build_tools.syllable_walk_web.server.is_port_available", return_value=False),
-            patch("build_tools.syllable_walk_web.server.select_auto_port", return_value=8004),
             patch("build_tools.syllable_walk_web.server.ThreadingHTTPServer") as mock_server_cls,
         ):
-            mock_server = MagicMock()
-            mock_server.serve_forever.side_effect = KeyboardInterrupt()
-            mock_server_cls.return_value = mock_server
-
             code = run_server(port=8000, verbose=False)
-            assert code == 0
-            assert mock_server_cls.call_args[0][0] == ("127.0.0.1", 8004)
+            assert code == 1
+            mock_server_cls.assert_not_called()
 
     def test_returns_1_for_busy_configured_out_of_range_port(self):
         """Busy configured ports outside 8000-8999 should fail fast."""
