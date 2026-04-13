@@ -1,0 +1,42 @@
+# pipeworks-namegen-lexicon — host-managed server configuration reference for Luminal.
+#
+# Copy to /etc/pipeworks/namegen-lexicon/server.ini and adjust as needed.
+# The service unit passes this path via --config at startup.
+#
+# See deploy/systemd/pipeworks-namegen-lexicon.service for the active unit template.
+
+[creator_workbench]
+
+# ---------------------------------------------------------------------------
+# Network
+# ---------------------------------------------------------------------------
+
+# Backend listens on localhost only when fronted by nginx.
+bind_host = 127.0.0.1
+port = 8370
+
+# ---------------------------------------------------------------------------
+# Runtime paths
+# ---------------------------------------------------------------------------
+
+# Base directory for pipeline run discovery.
+output_base = /srv/work/pipeworks/runtime/namegen-lexicon/output
+
+# Directory for saved walker sessions.
+sessions_dir = /srv/work/pipeworks/runtime/namegen-lexicon/sessions
+
+# ---------------------------------------------------------------------------
+# Optional corpus auto-load
+# ---------------------------------------------------------------------------
+
+# Run discovery directories to auto-load into Patch A and Patch B on startup.
+# Leave blank to start with empty patches.
+# corpus_dir_a =
+# corpus_dir_b =
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+
+# Set to false to suppress HTTP request logs (equivalent to --quiet).
+verbose = false

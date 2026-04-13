@@ -616,27 +616,11 @@ def run_server(
             )
             return 1
     elif not is_port_available(port, bind_host=bind_host):
-        if AUTO_PORT_PRIMARY_START <= port < (AUTO_PORT_FALLBACK_START + AUTO_PORT_FALLBACK_TRIES):
-            configured_port = port
-            port = select_auto_port(bind_host=bind_host)
-            if port is None:
-                _emit_runtime_message(
-                    "Error: configured port unavailable and no fallback port found "
-                    "(tried 8000-8999; prefers 8000-8099 first)",
-                    error=True,
-                )
-                return 1
-            if verbose:
-                _emit_runtime_message(
-                    f"Configured port {configured_port} unavailable; using auto-selected "
-                    f"port {port} (prefers 8000-8099)."
-                )
-        else:
-            _emit_runtime_message(
-                f"Error: configured port {port} is already in use.",
-                error=True,
-            )
-            return 1
+        _emit_runtime_message(
+            f"Error: configured port {port} is already in use.",
+            error=True,
+        )
+        return 1
 
     _configure_handler_state(
         verbose=verbose,

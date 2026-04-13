@@ -1,0 +1,22 @@
+[Unit]
+Description=Pipeworks Namegen Lexicon Creator Workbench
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pipeworks
+Group=pipeworks
+WorkingDirectory=/srv/work/pipeworks/repos/pipeworks-namegen-lexicon
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/work/pipeworks/venvs/pw-namegen-lexicon/bin/pipeworks-namegen-lexicon-web --config /etc/pipeworks/namegen-lexicon/server.ini
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/srv/work/pipeworks/runtime/namegen-lexicon
+
+[Install]
+WantedBy=multi-user.target
