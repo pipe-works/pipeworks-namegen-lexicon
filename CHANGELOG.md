@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/pipe-works/pipeworks-namegen-lexicon/compare/pipeworks-namegen-lexicon-v0.1.3...pipeworks-namegen-lexicon-v0.1.4) (2026-04-13)
+
+
+### Bug Fixes
+
+* **workbench:** fail loudly on port conflict; add deploy templates ([#14](https://github.com/pipe-works/pipeworks-namegen-lexicon/issues/14)) ([6cf43b7](https://github.com/pipe-works/pipeworks-namegen-lexicon/commit/6cf43b7bba42d6b8c720629c27396809520b74d9))
+
 ## [0.1.3](https://github.com/pipe-works/pipeworks-namegen-lexicon/compare/pipeworks-namegen-lexicon-v0.1.2...pipeworks-namegen-lexicon-v0.1.3) (2026-04-13)
 
 
